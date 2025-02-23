@@ -1,28 +1,11 @@
-import mongoose from 'mongoose'
+const mongoose = require('mongoose');
 
-const {Schema} = mongoose
-const UserSchema = new Schema({
-    email: {
-        type: "string",
-        required: true,
-        unique: true
-    },
-    phoneNo: {
-        type: "string",
-        required: true,
-        unique: true
-    },
-    password: {
-        type: "string",
-        required: true
-    },
-    role: {
-        type: "string",
-        required: true
-    },
-    createdOn: {
-        type: Date,
-        default: Date.now
-    }
-})
-export default mongoose.model("User", UserSchema, "users")
+const userSchema = new mongoose.Schema({
+  mobileNumber: { type: String, required: true, unique: true },
+  gender: {type: String, required: true},
+  isVerified: { type: Boolean, default: false },
+  fcmToken: { type: String }, // For Firebase notifications
+  name: { type: String },
+});
+
+module.exports = mongoose.model('User', userSchema);
