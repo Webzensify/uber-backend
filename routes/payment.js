@@ -9,7 +9,7 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Create Razorpay Order (After Driver Accepts)
+// Create Razorpay Order (After User Accepts)
 router.post('/create-order', async (req, res) => {
   const { rideId } = req.body;
   try {
