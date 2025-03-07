@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const authenticateUser = require('../middlewares/authenticatedUser')
 const Ride = require('../models/Ride');
 
 const razorpay = new Razorpay({
@@ -10,7 +11,7 @@ const razorpay = new Razorpay({
 });
 
 // Create Razorpay Order (After User Accepts)
-router.post('/create-order', async (req, res) => {
+router.post('/create-order',authenticateUser , async (req, res) => {
   const { rideId } = req.body;
   try {
     const ride = await Ride.findById(rideId).populate('userId');
@@ -40,7 +41,7 @@ router.post('/create-order', async (req, res) => {
 });
 
 // Verify Payment
-router.post('/verify', async (req, res) => {
+router.post('/verify',authenticateUser , async (req, res) => {
   const { rideId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
   try {
     const ride = await Ride.findById(rideId);

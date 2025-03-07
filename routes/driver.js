@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Driver = require('../models/Driver');
-const {authenticateUser} = require('../middlewares/authenticatedUser')
+const authenticateUser = require('../middlewares/authenticatedUser')
 // Get Driver Profile
-router.get('/profile/:driverId', async (req, res) => {
+router.get('/profile/:driverId', authenticateUser, async (req, res) => {
   try {
+    // console.log(req)
     const driver = await Driver.findById(req.params.driverId).select('-__v');
     if (!driver) return res.status(404).json({ msg: 'Driver not found' });
     res.json(driver);
@@ -14,7 +15,7 @@ router.get('/profile/:driverId', async (req, res) => {
 });
 
 // Update Driver Profile
-router.put('/profile/:driverId', async (req, res) => {
+router.put('/profile/:driverId', authenticateUser, async (req, res) => {
   const { name, licenseNumber, aadhaarNumber, vehicleDetails, isAvailable } = req.body;
   try {
     const driver = await Driver.findById(req.params.driverId);

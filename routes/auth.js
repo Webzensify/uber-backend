@@ -22,10 +22,10 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({msg: 'Invalid role'});
         }
         let entity
+        const cryptPassword = await bcrypt.hash(password, 10)
         if (role === "owner") {
             entity = await Owner.findOne({email});
             if (entity) return res.status(400).json({msg: `${role} already registered`})
-            const cryptPassword = await bcrypt.hash(password, 10)
             entity = new Owner({
                 email: email,
                 name,
@@ -38,7 +38,7 @@ router.post('/register', async (req, res) => {
             entity = new Model({
                 email,
                 name,
-                password,
+                password: cryptPassword ,
                 gender,
                 ...(role === 'driver' && {licenseNumber, vehicleDetails, aadhaarNumber, mobileNumber, owner }),
             });
@@ -69,12 +69,15 @@ router.post('/login', async (req, res) => {
             }
 
             const Model = role === 'user' ? User : Driver;
+            console.log("model:", Model)
             entity = await Model.findOne({email});
+            console.log(entity.password)
             if (!entity) {
                 return res.status(404).json({msg: `${role} not found, OTP sent for registration`});
             }
         }
-        const comparePass = bcrypt.compare(password, entity.password);
+        const comparePass = await bcrypt.compare(password, entity.password);
+        console.log(comparePass)
         if (!comparePass) {
             return res.status(400).json({msg: "Invalid Credentials"})
         }

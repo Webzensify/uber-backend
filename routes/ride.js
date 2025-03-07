@@ -3,12 +3,13 @@ const router = express.Router();
 const Ride = require('../models/Ride');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
+const authenticateUser = require('../middlewares/authenticatedUser')
 const {sendNotification} = require('../services/notification');
 // user book, user accept
 // driver quote, driver see all available jobs
 
 // Add a Ride (User specifies destination)
-router.post('/add', async (req, res) => {
+router.post('/add', authenticateUser, async (req, res) => {
     const {userId, pickupLocation, dropoffLocation} = req.body;
     try {
         const user = await User.findById(userId);
@@ -37,7 +38,7 @@ router.post('/add', async (req, res) => {
 });
 
 // Driver adds a quote to the Ride
-router.post('/quote', async (req, res) => {
+router.post('/quote',authenticateUser , async (req, res) => {
     const {rideId, driverId, fare} = req.body;
     try {
         const ride = await Ride.findById(rideId);
@@ -69,7 +70,7 @@ router.post('/quote', async (req, res) => {
 });
 
 
-router.post('/book', async (req, res) => {
+router.post('/book',authenticateUser ,async (req, res) => {
     const {fare, driverId, rideId} = req.body;
     try {
         const ride = await Ride.findById(rideId);
@@ -90,7 +91,7 @@ router.post('/book', async (req, res) => {
 })
 
 // Get All Pending Rides
-router.get('/pending', async (req, res) => {
+router.get('/pending',authenticateUser , async (req, res) => {
     try {
         const pendingRides = await Ride.find({status: 'pending'})
             .populate('userId', 'name mobileNumber') // Populate user details
@@ -102,7 +103,7 @@ router.get('/pending', async (req, res) => {
 });
 
 // Get quotes of a ride
-router.get('/quotes/:rideId', async (req, res) => {
+router.get('/quotes/:rideId',authenticateUser , async (req, res) => {
     try {
         const {rideId} = req.params;
         const ride = await Ride.findById(rideId);
@@ -111,6 +112,8 @@ router.get('/quotes/:rideId', async (req, res) => {
         res.status(500).json({msg: 'Server error', error: err.message});
     }
 });
+
+//  cancel ride
 
 
 module.exports = router;
