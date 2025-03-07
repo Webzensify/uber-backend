@@ -12,7 +12,7 @@ router.post('/add', async (req, res) => {
     const {userId, pickupLocation, dropoffLocation} = req.body;
     try {
         const user = await User.findById(userId);
-        if (!user || !user.isVerified) return res.status(400).json({msg: 'User not verified'});
+        if (!user) return res.status(400).json({msg: 'User not verified'});
 
         const ride = new Ride({
             userId,
@@ -100,5 +100,17 @@ router.get('/pending', async (req, res) => {
         res.status(500).json({msg: 'Server error', error: err.message});
     }
 });
+
+// Get quotes of a ride
+router.get('/quotes/:rideId', async (req, res) => {
+    try {
+        const {rideId} = req.params;
+        const ride = await Ride.findById(rideId);
+        res.json({msg: 'Pending rides retrieved', quotes: ride.quote});
+    } catch (err) {
+        res.status(500).json({msg: 'Server error', error: err.message});
+    }
+});
+
 
 module.exports = router;

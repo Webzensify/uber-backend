@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Driver = require('../models/Driver');
-
+const {authenticateUser} = require('../middlewares/authenticatedUser')
 // Get Driver Profile
 router.get('/profile/:driverId', async (req, res) => {
   try {
