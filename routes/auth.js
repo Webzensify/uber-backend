@@ -47,7 +47,7 @@ router.post('/register', async (req, res) => {
         await entity.save();
 
         const authToken = await generateToken(entity)
-        res.json({msg: `${role} registered`, entityId: entity._id, authToken});
+        res.json({msg: `${role} registered`, entityId: entity, authToken});
     } catch (err) {
         res.status(500).json({msg: 'Server error', error: err.message});
     }
@@ -82,7 +82,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({msg: "Invalid Credentials"})
         }
         const authToken = generateToken(entity)
-        return res.status(200).json({msg: `${role} logged in successfully`})
+        return res.status(200).json({msg: `${role} logged in successfully`,entity,authToken})
 
     } catch (err) {
         res.status(500).json({msg: 'Server error', error: err.message});

@@ -28,7 +28,7 @@ router.put('/profile/:userId',authenticateUser , async (req, res) => {
     await user.save();
     res.json({ msg: 'Profile updated', user });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    res.status(500).json({ msg: 'Server error', error: err.message ,e});
   }
 });
 

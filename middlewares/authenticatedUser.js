@@ -3,14 +3,13 @@ const User = require('../models/User');
 const Driver = require('../models/Driver')
 const Owner = require('../models/Owner')
 const authenticateUser = async (req, res, next) => {
-    console.log(req.headers)
-    const {authToken, role} = req.headers;
+    const {authtoken, role} = req.headers;
     const {userId} = req.params;
-    if (authToken === undefined) {
+    if (authtoken === undefined) {
         return res.status(500).json({msg: "authToken not defined"});
     }
     try {
-        const data = jwt.verify(authToken, process.env.JWT_SECRET);
+        const data = jwt.verify(authtoken, process.env.JWT_SECRET);
         let Model;
         if (role === "owner") {
             Model = Owner;
