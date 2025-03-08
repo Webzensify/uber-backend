@@ -113,6 +113,27 @@ router.get('/quotes/:rideId',authenticateUser , async (req, res) => {
     }
 });
 
+// Get Ride Details by Ride ID
+router.get('/:rideId', authenticateUser, async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const ride = await Ride.findById(rideId)
+            .populate('userId', 'name mobileNumber') // Populate user details
+            .populate({
+                path: 'driverId',
+                select: 'owner mobileNumber isVerified name licenseNumber aadhaarNumber vehicleDetails isAvailable email'
+            }); // Populate full driver details
+
+        if (!ride) {
+            return res.status(404).json({ msg: 'Ride not found' });
+        }
+
+        res.json({ msg: 'Ride details retrieved', ride });
+    } catch (err) {
+        res.status(500).json({ msg: 'Server error', error: err.message });
+    }
+});
+
 //  cancel ride
 
 

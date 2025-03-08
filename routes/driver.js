@@ -3,7 +3,7 @@ const router = express.Router();
 const Driver = require('../models/Driver');
 const authenticateUser = require('../middlewares/authenticatedUser')
 // Get Driver Profile
-router.get('/profile/:driverId', authenticateUser, async (req, res) => {
+router.get('/profile/:driverId', async (req, res) => {
   try {
     // console.log(req)
     const driver = await Driver.findById(req.params.driverId).select('-__v');
