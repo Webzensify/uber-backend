@@ -6,6 +6,7 @@ const driverSchema = new mongoose.Schema({
   name: { type: String },
   licenseNumber: { type: String, required: true},
   aadhaarNumber: { type: String, required: true},
+  fcmToken: {type: String},
   vehicleDetails: {
     owner: String,
     make: String,

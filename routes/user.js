@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const logger = require('../logger')
 const User = require('../models/User');
 const authenticateUser = require('../middlewares/authenticatedUser')
 
@@ -7,10 +8,17 @@ const authenticateUser = require('../middlewares/authenticatedUser')
 router.get('/profile/:userId',authenticateUser , async (req, res) => {
   try {
     const user = await User.findById(req.params.userId).select('-__v');
-    if (!user) return res.status(404).json({ msg: 'User not found' });
-    res.json(user);
+    if (!user){
+      const msg = 'User not found'
+      logger.error(msg)
+      return res.status(404).json({msg});
+    }
+    const msg = 'user profile fetched'
+    logger.info(msg)
+    return res.json({msg, user});
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    logger.error(err.message)
+    return res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
 
@@ -26,9 +34,12 @@ router.put('/profile/:userId',authenticateUser , async (req, res) => {
     user.fcmToken = fcmToken || user.fcmToken;
 
     await user.save();
-    res.json({ msg: 'Profile updated', user });
+    const msg = 'User Profile updated'
+    logger.info(msg)
+    return res.json({ msg, user });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message ,e});
+    logger.error(err.message)
+    return res.status(500).json({ msg: 'Server error', error: err.message ,e});
   }
 });
 

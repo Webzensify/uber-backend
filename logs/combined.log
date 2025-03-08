@@ -1,0 +1,75 @@
+2025-03-08T15:45:28.902Z [INFO]: Server is running on port 3000
+2025-03-08T15:46:42.278Z [INFO]: POST /api/auth/register
+2025-03-08T15:46:42.463Z [ERROR]: Driver validation failed: owner: Path `owner` is required., mobileNumber: Path `mobileNumber` is required., licenseNumber: Path `licenseNumber` is required., aadhaarNumber: Path `aadhaarNumber` is required.
+2025-03-08T15:47:18.681Z [INFO]: POST /api/auth/register
+2025-03-08T15:47:18.857Z [ERROR]: Driver validation failed: owner: Path `owner` is required.
+2025-03-08T15:48:27.686Z [INFO]: Server is running on port 3000
+2025-03-08T15:49:02.379Z [INFO]: Server is running on port 3000
+2025-03-08T15:51:07.274Z [INFO]: Server is running on port 3000
+2025-03-08T15:53:59.634Z [INFO]: Server is running on port 3000
+2025-03-08T15:54:00.900Z [INFO]: POST /api/auth/register
+2025-03-08T15:54:02.050Z [INFO]: driver registered
+2025-03-08T15:54:16.862Z [INFO]: POST /api/auth/login
+2025-03-08T15:54:16.971Z [INFO]: driver logged in successfully
+2025-03-08T15:54:23.253Z [INFO]: POST /api/auth/login
+2025-03-08T15:54:23.357Z [ERROR]: Invalid Credentials
+2025-03-08T15:54:28.308Z [INFO]: POST /api/auth/login
+2025-03-08T15:54:28.412Z [INFO]: driver logged in successfully
+2025-03-08T15:55:33.471Z [INFO]: POST /api/ride/add
+2025-03-08T15:55:33.560Z [ERROR]: User not verified
+2025-03-08T15:55:39.185Z [INFO]: POST /api/auth/register
+2025-03-08T15:55:39.610Z [ERROR]: E11000 duplicate key error collection: test.users index: mobileNumber_1 dup key: { mobileNumber: null }
+2025-03-08T15:55:45.001Z [INFO]: POST /api/auth/register
+2025-03-08T15:55:45.148Z [ERROR]: E11000 duplicate key error collection: test.users index: mobileNumber_1 dup key: { mobileNumber: null }
+2025-03-08T15:56:19.716Z [INFO]: Server is running on port 3000
+2025-03-08T15:56:24.275Z [INFO]: Server is running on port 3000
+2025-03-08T15:56:26.871Z [INFO]: POST /api/auth/register
+2025-03-08T15:56:27.033Z [ERROR]: E11000 duplicate key error collection: test.users index: mobileNumber_1 dup key: { mobileNumber: null }
+2025-03-08T15:56:46.462Z [INFO]: POST /api/auth/register
+2025-03-08T15:56:46.611Z [INFO]: user registered
+2025-03-08T15:57:09.304Z [INFO]: POST /api/ride/add
+2025-03-08T15:57:20.773Z [INFO]: POST /api/auth/login
+2025-03-08T15:57:20.880Z [INFO]: user logged in successfully
+2025-03-08T15:57:34.307Z [INFO]: POST /api/auth/login
+2025-03-08T15:57:34.413Z [INFO]: user logged in successfully
+2025-03-08T15:57:34.521Z [INFO]: POST /api/auth/login
+2025-03-08T15:57:34.664Z [INFO]: user logged in successfully
+2025-03-08T15:57:40.407Z [INFO]: POST /api/ride/add
+2025-03-08T15:58:32.670Z [INFO]: POST /api/ride/add
+2025-03-08T15:58:32.751Z [ERROR]: User not verified
+2025-03-08T15:59:40.667Z [INFO]: Server is running on port 3000
+2025-03-08T15:59:43.109Z [INFO]: POST /api/ride/add
+2025-03-08T15:59:43.223Z [ERROR]: User not found
+2025-03-08T16:00:55.242Z [INFO]: POST /api/ride/add
+2025-03-08T16:00:55.795Z [INFO]: Ride added, notifying drivers
+2025-03-08T16:01:48.004Z [INFO]: POST /api/ride/add
+2025-03-08T16:01:48.185Z [INFO]: Ride added, notifying drivers
+2025-03-08T16:01:52.144Z [INFO]: POST /api/auth/login
+2025-03-08T16:01:52.467Z [ERROR]: Cannot read properties of null (reading 'password')
+2025-03-08T16:02:04.508Z [INFO]: POST /api/auth/login
+2025-03-08T16:02:04.803Z [ERROR]: Cannot read properties of null (reading 'password')
+2025-03-08T16:02:26.019Z [INFO]: POST /api/auth/login
+2025-03-08T16:02:26.420Z [INFO]: driver logged in successfully
+2025-03-08T16:03:33.947Z [INFO]: POST /api/ride/quote
+2025-03-08T16:03:54.672Z [INFO]: POST /api/ride/quote
+2025-03-08T16:03:54.754Z [ERROR]: Invalid ride
+2025-03-08T16:04:33.716Z [INFO]: POST /api/ride/quote
+2025-03-08T16:04:34.200Z [INFO]: Quote added, user notified
+2025-03-08T16:05:30.064Z [INFO]: POST /api/ride/book
+2025-03-08T16:05:30.790Z [INFO]: ride 67cc69ec63a7a36c4c75002c booked  now proceed to make the payments
+2025-03-08T16:06:58.317Z [INFO]: GET /api/ride/quotes/67cc69ec63a7a36c4c75002c
+2025-03-08T16:06:58.398Z [INFO]: ride quotes retrieved
+2025-03-08T16:07:10.318Z [INFO]: GET /api/ride/67cc69ec63a7a36c4c75002c
+2025-03-08T16:07:10.478Z [INFO]: Ride details retrieved
+2025-03-08T16:07:46.473Z [INFO]: POST /api/ride/cancel
+2025-03-08T16:07:46.954Z [INFO]: ride cancelled success
+2025-03-08T16:08:13.763Z [INFO]: Server is running on port 3000
+2025-03-08T16:08:24.566Z [INFO]: Server is running on port 3000
+2025-03-08T16:08:35.017Z [INFO]: POST /api/ride/cancel
+2025-03-08T16:08:35.258Z [INFO]: ride cancelled success
+2025-03-08T16:11:55.690Z [INFO]: POST /api/ride/verifyOtp
+2025-03-08T16:11:56.387Z [INFO]: incorrect OTP
+2025-03-08T16:12:11.670Z [INFO]: POST /api/ride/verifyOtp
+2025-03-08T16:12:11.938Z [INFO]: incorrect OTP
+2025-03-08T16:12:22.154Z [INFO]: POST /api/ride/verifyOtp
+2025-03-08T16:12:22.296Z [INFO]: OTP verified, ride complete

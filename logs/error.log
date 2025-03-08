@@ -1,0 +1,12 @@
+2025-03-08T15:46:42.463Z [ERROR]: Driver validation failed: owner: Path `owner` is required., mobileNumber: Path `mobileNumber` is required., licenseNumber: Path `licenseNumber` is required., aadhaarNumber: Path `aadhaarNumber` is required.
+2025-03-08T15:47:18.857Z [ERROR]: Driver validation failed: owner: Path `owner` is required.
+2025-03-08T15:54:23.357Z [ERROR]: Invalid Credentials
+2025-03-08T15:55:33.560Z [ERROR]: User not verified
+2025-03-08T15:55:39.610Z [ERROR]: E11000 duplicate key error collection: test.users index: mobileNumber_1 dup key: { mobileNumber: null }
+2025-03-08T15:55:45.148Z [ERROR]: E11000 duplicate key error collection: test.users index: mobileNumber_1 dup key: { mobileNumber: null }
+2025-03-08T15:56:27.033Z [ERROR]: E11000 duplicate key error collection: test.users index: mobileNumber_1 dup key: { mobileNumber: null }
+2025-03-08T15:58:32.751Z [ERROR]: User not verified
+2025-03-08T15:59:43.223Z [ERROR]: User not found
+2025-03-08T16:01:52.467Z [ERROR]: Cannot read properties of null (reading 'password')
+2025-03-08T16:02:04.803Z [ERROR]: Cannot read properties of null (reading 'password')
+2025-03-08T16:03:54.754Z [ERROR]: Invalid ride

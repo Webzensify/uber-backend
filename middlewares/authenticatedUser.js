@@ -19,6 +19,7 @@ const authenticateUser = async (req, res, next) => {
             Model = Driver;
         }
         req.user = await Model.findById(data.user.id);
+        req.user.role = role;
         console.log('req.user ', req.user);
         next()
     }

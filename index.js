@@ -2,6 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
+const fs = require("fs");
+const path = require("path");
+const logger = require("./logger");
 const authRoutes = require('./routes/auth');
 const rideRoutes = require('./routes/ride');
 const paymentRoutes = require('./routes/payment');
@@ -11,7 +14,19 @@ const driverRoutes = require('./routes/driver'); // New
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Ensure the logs directory exists
+const logDirectory = "logs";
+if (!fs.existsSync(logDirectory)) {
+    fs.mkdirSync(logDirectory);
+}
+
 app.use(express.json());
+
+// Middleware to log all requests
+app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.url}`);
+    next();
+});
 
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
@@ -27,7 +42,7 @@ app.use('/api/user', userRoutes); // New
 app.use('/api/driver', driverRoutes); // New
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`Server is running on port ${PORT}`);
 });
 
 // Socket.IO Server

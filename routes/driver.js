@@ -1,16 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const Driver = require('../models/Driver');
+const logger = require('../logger')
 const authenticateUser = require('../middlewares/authenticatedUser')
 // Get Driver Profile
 router.get('/profile/:driverId', async (req, res) => {
   try {
     // console.log(req)
     const driver = await Driver.findById(req.params.driverId).select('-__v');
-    if (!driver) return res.status(404).json({ msg: 'Driver not found' });
-    res.json(driver);
+    if (!driver) {
+      const msg =  'Driver not found';
+      logger.error(msg);
+      return res.status(404).json({msg});
+    }
+    logger.info("Driver info fetched")
+    return res.status(200).json(driver);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    logger.error(err.message)
+    return res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
 
@@ -35,9 +42,12 @@ router.put('/profile/:driverId', authenticateUser, async (req, res) => {
     driver.isAvailable = isAvailable !== undefined ? isAvailable : driver.isAvailable;
 
     await driver.save();
-    res.json({ msg: 'Profile updated', driver });
+    const msg = 'Profile updated'
+    logger.info(msg);
+    return res.json({ msg, driver });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    logger.error(err.message);
+    return res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
 

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const Owner = require('../models/Owner')
+const Owner = require('../models/Owner');
 const User = require('../models/User');
+const logger = require('../logger');
 const Driver = require('../models/Driver');
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
@@ -16,10 +17,23 @@ const generateToken = (entity) => {
 }
 
 router.post('/register', async (req, res) => {
-    const {email, password, owner, role, name, gender, aadhaarNumber, mobileNumber, licenseNumber, vehicleDetails} = req.body;
+    const {
+        email,
+        password,
+        owner,
+        role,
+        name,
+        gender,
+        aadhaarNumber,
+        mobileNumber,
+        licenseNumber,
+        vehicleDetails
+    } = req.body;
     try {
         if (!['user', 'driver', 'owner'].includes(role)) {
-            return res.status(400).json({msg: 'Invalid role'});
+            const msg = 'Invalid role'
+            logger.error(msg)
+            return res.status(400).json({msg});
         }
         let entity
         const cryptPassword = await bcrypt.hash(password, 10)
@@ -34,21 +48,28 @@ router.post('/register', async (req, res) => {
         } else {
             const Model = role === 'user' ? User : Driver;
             entity = await Model.findOne({email});
-            if (entity) return res.status(400).json({msg: `${role} already registered`});
+            if (entity) {
+                const msg = `${role} already registered`
+                logger.error(msg)
+                return res.status(400).json({msg});
+            }
             entity = new Model({
                 email,
                 name,
-                password: cryptPassword ,
+                password: cryptPassword,
                 gender,
-                ...(role === 'driver' && {licenseNumber, vehicleDetails, aadhaarNumber, mobileNumber, owner }),
+                ...(role === 'driver' && {licenseNumber, vehicleDetails, aadhaarNumber, mobileNumber, owner}),
             });
         }
         console.log(entity)
         await entity.save();
 
         const authToken = await generateToken(entity)
-        res.json({msg: `${role} registered`, entityId: entity, authToken});
+        const msg = `${role} registered`
+        logger.info(msg);
+        res.json({msg, entity, authToken});
     } catch (err) {
+        logger.error(err.message)
         res.status(500).json({msg: 'Server error', error: err.message});
     }
 });
@@ -61,11 +82,15 @@ router.post('/login', async (req, res) => {
         if (role === "owner") {
             entity = Owner.findOne({email})
             if (!entity) {
-                return res.status(400).json({msg: "Owner doesn't exist"})
+                const msg = "Owner doesn't exist"
+                logger.error(msg)
+                return res.status(400).json({msg})
             }
         } else {
             if (!['user', 'driver'].includes(role)) {
-                return res.status(400).json({msg: 'Invalid role'});
+                const msg = 'Invalid role'
+                logger.error(msg)
+                return res.status(400).json({msg});
             }
 
             const Model = role === 'user' ? User : Driver;
@@ -73,18 +98,25 @@ router.post('/login', async (req, res) => {
             entity = await Model.findOne({email});
             console.log(entity.password)
             if (!entity) {
-                return res.status(404).json({msg: `${role} not found, OTP sent for registration`});
+                const msg = `${role} not found`
+                logger.error(msg);
+                return res.status(404).json({msg});
             }
         }
         const comparePass = await bcrypt.compare(password, entity.password);
         console.log(comparePass)
         if (!comparePass) {
-            return res.status(400).json({msg: "Invalid Credentials"})
+            const msg = "Invalid Credentials"
+            logger.error(msg)
+            return res.status(400).json({msg})
         }
         const authToken = generateToken(entity)
-        return res.status(200).json({msg: `${role} logged in successfully`,entity,authToken})
+        const msg = `${role} logged in successfully`
+        logger.info(msg)
+        return res.status(200).json({msg, entity, authToken})
 
     } catch (err) {
+        logger.error(err.message)
         res.status(500).json({msg: 'Server error', error: err.message});
     }
 });

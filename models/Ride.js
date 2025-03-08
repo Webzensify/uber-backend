@@ -11,6 +11,11 @@ const rideSchema = new mongoose.Schema({
     price: {type: String, required: true}
   }],
   status: { type: String, enum: ['pending', 'accepted', 'completed', 'cancelled'], default: 'pending' },
+  cancelDetails: {
+    by: {type: String, enum: ['user', 'driver']},
+    reason: {type: String}
+  },
+  otp: {type: Number},
   paymentStatus: { type: String, enum: ['pending', 'paid'], default: 'pending' },
 }, { timestamps: true }); // Adding timestamps for creation/update times
 
