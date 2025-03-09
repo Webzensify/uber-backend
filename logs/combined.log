@@ -73,3 +73,16 @@
 2025-03-08T16:12:11.938Z [INFO]: incorrect OTP
 2025-03-08T16:12:22.154Z [INFO]: POST /api/ride/verifyOtp
 2025-03-08T16:12:22.296Z [INFO]: OTP verified, ride complete
+2025-03-09T07:52:53.896Z [INFO]: Server is running on port 3000
+2025-03-09T08:04:31.247Z [INFO]: Server is running on port 3000
+2025-03-09T08:13:07.010Z [INFO]: Server is running on port 3000
+2025-03-09T08:13:57.326Z [INFO]: Server is running on port 3000
+2025-03-09T08:14:34.015Z [INFO]: Server is running on port 3000
+2025-03-09T08:17:33.530Z [INFO]: Server is running on port 3000
+2025-03-09T08:19:31.459Z [INFO]: Server is running on port 3000
+2025-03-09T08:19:59.896Z [INFO]: Server is running on port 3000
+2025-03-09T08:21:36.844Z [INFO]: Server is running on port 3000
+2025-03-09T08:24:37.536Z [INFO]: Server is running on port 3000
+2025-03-09T08:28:57.523Z [INFO]: Server is running on port 3000
+2025-03-09T08:29:22.728Z [INFO]: Server is running on port 3000
+2025-03-09T08:35:49.813Z [INFO]: Server is running on port 3000

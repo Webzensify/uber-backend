@@ -6,7 +6,6 @@ const logger = require('../logger');
 const Driver = require('../models/Driver');
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-// Register (User or Driver)
 const generateToken = (entity) => {
     const data = {
         user: {
@@ -15,6 +14,7 @@ const generateToken = (entity) => {
     }
     return jwt.sign(data, process.env.JWT_SECRET)
 }
+// Register (User or Driver)
 
 router.post('/register', async (req, res) => {
     const {

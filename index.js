@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const fs = require("fs");
+const Driver = require("./models/Driver");
+const Ride = require("./models/Ride");
 const path = require("path");
 const logger = require("./logger");
 const authRoutes = require('./routes/auth');
@@ -55,7 +57,7 @@ io.on('connection', (socket) => {
 
   // Handle join event
   socket.on('join', (data) => {
-    const { rideId, userId, driverId } = data || {};
+    const { rideId, role, userId, driverId } = data || {};
 
     if (!rideId) {
       socket.emit('error', { message: 'rideId required' });
@@ -65,28 +67,35 @@ io.on('connection', (socket) => {
     // Join the rideId room
     socket.join(rideId);
     socket.rideId = rideId; // Store rideId on the socket object
-    console.log(`Client ${socket.id} joined room ${rideId}`);
+    console.log(`Client ${socket.id} ${role} joined room ${rideId}`);
 
     // Notify client of successful join
     socket.emit('joined', { rideId });
   });
 
   // Handle coordinates event
-  socket.on('coordinates', (data) => {
-    const { rideId, coordinates, userId, driverId } = data || {};
-
-    if (!rideId || !coordinates) {
+  socket.on('coordinates', async(data) => {
+    socket.emit('message', {
+      msg: "hello"
+    })
+    const { rideId, currentLocation, driverId } = data || {};
+    console.log(rideId, currentLocation, driverId)
+    if (!rideId || !currentLocation) {
       socket.emit('error', { message: 'rideId and coordinates required' });
       return;
     }
-
+    const driver = await Driver.findById(driverId);
+    console.log(driver)
+    driver.currentLocation = currentLocation;
+    await driver.save()
     // Broadcast coordinates to other clients in the room
-    socket.to(rideId).emit('coordinates', {
+    socket.to(rideId).emit('driverUpdated', {
+      msg: "hello",
       rideId,
-      sender: userId ? 'user' : 'driver',
-      coordinates,
+      driverId,
+      currentLocation
     });
-    console.log(`Coordinates sent to room ${rideId} from ${userId ? 'user' : 'driver'}`);
+    console.log(`driver current location updated `);
   });
 
   // Handle disconnection

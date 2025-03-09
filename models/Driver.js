@@ -13,6 +13,10 @@ const driverSchema = new mongoose.Schema({
     model: String,
     licensePlate: String
   },
+  currentLocation: {
+    coordinates: {type: String},
+    desc: {type: String}
+  },
   isAvailable: { type: Boolean, default: true },
   email: {type: String, required: true},
   password: {type: String, required: true}

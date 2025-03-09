@@ -33,7 +33,7 @@ router.post('/add', authenticateUser, async (req, res) => {
             await sendNotification(
                 driver.fcmToken,
                 'New Ride Request',
-                `Pickup: ${pickupLocation}, Dropoff: ${dropoffLocation}`
+                `Pickup: ${pickupLocation.desc}, Dropoff: ${dropoffLocation.desc}`
             );
         }
         const msg = 'Ride added, notifying drivers';
