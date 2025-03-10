@@ -4,17 +4,24 @@ const rideSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver' },
   pickupLocation: {
-    coordinates: {type: String, required: true},
+    longitude: {type: String, required: true},
+    latitude: {type: String, required: true},
     desc: {type: String, required: true}
   },
   dropoffLocation: {
-    coordinates: {type: String, required: true},
+    longitude: {type: String, required: true},
+    latitude: {type: String, required: true},
     desc: {type: String, required: true}
   },
   fare: { type: Number, required: false },
   quote: [{
     driver: {type: mongoose.Schema.Types.ObjectId, ref: 'Driver'},
-    price: {type: String, required: true}
+    price: {type: String, required: true},
+    currentLocation: {
+      longitude: {type: String},
+      latitude: {type: String},
+      desc: {type: String}
+    },
   }],
   status: { type: String, enum: ['pending', 'accepted', 'completed', 'cancelled'], default: 'pending' },
   cancelDetails: {
