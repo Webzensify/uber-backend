@@ -3,3 +3,4 @@ config.js
 .idea/
 .env
 firebase-service-account.json
+logs/
