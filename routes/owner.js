@@ -135,13 +135,13 @@ router.post('/loginDriver', authenticateUser, async (req, res) => {
     const { code, mobileNumber } = req.body;
     try {
         const entity = await Driver.findOne({ mobileNumber });
+        console.log(`driverOTPstore: ${driverOtpStore}`)
         if (entity) {
             if (verifyOtp(mobileNumber, code)) {
                 entity.isVerified = true;
                 await entity.save();
-                const authToken = generateToken(entity)
-                otpStore.delete(mobileNumber); // Clean up OTP after successful verification
-                res.json({ msg: `${role} logged in`, entity, authToken });
+                driverOtpStore.delete(mobileNumber); // Clean up OTP after successful verification
+                res.json({ msg: `driver verified success`, entity });
             } else {
                 res.status(400).json({ msg: 'Invalid or expired OTP' });
             }
