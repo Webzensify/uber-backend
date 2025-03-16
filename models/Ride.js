@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-
+// Car field to be added Later
 const rideSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver' },

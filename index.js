@@ -12,7 +12,7 @@ const rideRoutes = require('./routes/ride');
 const paymentRoutes = require('./routes/payment');
 const userRoutes = require('./routes/user'); // New
 const driverRoutes = require('./routes/driver'); // New
-
+const ownerRoutes = require('./routes/owner');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -42,6 +42,7 @@ app.use('/api/ride', rideRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/user', userRoutes); // New
 app.use('/api/driver', driverRoutes); // New
+app.use('/api/owner', ownerRoutes)
 
 const server = app.listen(PORT, () => {
   logger.info(`Server is running on port ${PORT}`);

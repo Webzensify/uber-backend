@@ -9,6 +9,7 @@ const authenticateUser = async (req, res, next) => {
         return res.status(500).json({msg: "authToken not defined"});
     }
     try {
+        console.log(`authtoken: ${authtoken}`)
         const data = jwt.verify(authtoken, process.env.JWT_SECRET);
         let Model;
         if (role === "owner") {
@@ -18,7 +19,9 @@ const authenticateUser = async (req, res, next) => {
         } else if (role === "driver") {
             Model = Driver;
         }
+        console.log(`data: ${data.user.id}`)
         req.user = await Model.findById(data.user.id);
+        req.userID = data.user.id
         req.user.role = role;
         console.log('req.user ', req.user);
         next()

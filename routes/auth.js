@@ -4,8 +4,9 @@ const Owner = require('../models/Owner');
 const User = require('../models/User');
 const logger = require('../logger');
 const Driver = require('../models/Driver');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { sendVerificationCode } = require('../services/sms');
+
 
 const generateToken = (entity) => {
     const data = {
@@ -16,116 +17,125 @@ const generateToken = (entity) => {
     return jwt.sign(data, process.env.JWT_SECRET);
 }
 
-// Register (User or Driver)
-router.post('/register', async (req, res) => {
-    const {
-        email,
-        password,
-        owner,
-        role,
-        name,
-        gender,
-        aadhaarNumber,
-        mobileNumber,
-        licenseNumber,
-        vehicleDetails,
-        fcmToken
-    } = req.body;
-    try {
-        if (!['user', 'driver', 'owner'].includes(role)) {
-            const msg = 'Invalid role';
-            logger.error(msg);
-            return res.status(400).json({msg});
-        }
-        let entity;
-        const cryptPassword = await bcrypt.hash(password, 10);
-        if (role === "owner") {
-            entity = await Owner.findOne({email});
-            if (entity) return res.status(400).json({msg: `${role} already registered`});
-            entity = new Owner({
-                email: email,
-                name,
-                password: cryptPassword,
-            });
-        } else {
-            const Model = role === 'user' ? User : Driver;
-            entity = await Model.findOne({email});
-            if (entity) {
-                const msg = `${role} already registered`;
-                logger.error(msg);
-                return res.status(400).json({msg});
-            }
-            entity = new Model({
-                email,
-                name,
-                password: cryptPassword,
-                gender,
-                ...(fcmToken && {fcmToken}),
-                ...(role === 'driver' && {licenseNumber, vehicleDetails, aadhaarNumber, mobileNumber, owner}),
-            });
-        }
-        console.log(entity);
-        await entity.save();
-
-        const authToken = await generateToken(entity);
-        const msg = `${role} registered`;
-        logger.info(msg);
-        res.json({msg, entity, authToken});
-    } catch (err) {
-        logger.error(err.message);
-        res.status(500).json({msg: 'Server error', error: err.message});
+ 
+ // In-memory OTP store (use Redis or a DB in production)
+ const otpStore = new Map(); // Key: mobileNumber, Value: { code, expiresAt }
+ 
+ // Generate and store OTP with expiration
+ const generateAndStoreOtp = (mobileNumber) => {
+   const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+   const expiresAt = Date.now() + 5 * 60 * 1000; // Expires in 5 minutes
+   otpStore.set(mobileNumber, { code, expiresAt });
+   return code;
+ };
+ 
+ const getModel = (role) => {
+    if (role === "user"){
+        Model = User;
+     }
+     else if(role === "driver"){
+        Model = Driver;
     }
-});
-
-// Login (Verify Credentials)
-router.post('/login', async (req, res) => {
-    const {email, password, role, fcmToken} = req.body;
-    try {
-        let entity;
-        if (role === "owner") {
-            entity = await Owner.findOne({email});
-            if (!entity) {
-                const msg = "Owner doesn't exist";
-                logger.error(msg);
-                return res.status(400).json({msg});
-            }
-        } else {
-            if (!['user', 'driver'].includes(role)) {
-                const msg = 'Invalid role';
-                logger.error(msg);
-                return res.status(400).json({msg});
-            }
-
-            const Model = role === 'user' ? User : Driver;
-            console.log("model:", Model);
-            entity = await Model.findOne({email});
-            if (!entity) {
-                const msg = `${role} not found`;
-                logger.error(msg);
-                return res.status(404).json({msg});
-            }
-        }
-
-        const comparePass = await bcrypt.compare(password, entity.password);
-        if (!comparePass) {
-            const msg = "Invalid Credentials";
-            logger.error(msg);
-            return res.status(400).json({msg});
-        }
-
-        if (fcmToken) {
-            entity.fcmToken = fcmToken; // Update FCM token if provided
-            await entity.save();
-        }
-
-        const authToken = generateToken(entity);
-        const msg = `${role} logged in successfully`;
-        logger.info(msg);
-        return res.status(200).json({msg, entity, authToken});
-    } catch (err) {
-        logger.error(err.message);
-        res.status(500).json({msg: 'Server error', error: err.message});
+    else{
+        Model = Owner;
     }
-});
+    return Model
+ }
 
-module.exports = router;
+ // Verify OTP
+ const verifyOtp = (mobileNumber, code) => {
+   const storedOtp = otpStore.get(mobileNumber);
+   console.log("Stored OTP:", storedOtp);
+   if (!storedOtp) return false; // No OTP found
+  
+   return storedOtp.code === code; // Match OTP
+ };
+ 
+ // Register (User or Driver)
+ router.post('/register', async (req, res) => {
+   const { mobileNumber, name, role, fcmToken, address, aadhaarNumber, email } = req.body;
+   console.log(role, aadhaarNumber, address, email)
+   try {
+     if (!['user', 'owner'].includes(role)) {
+       return res.status(400).json({ msg: 'Invalid role' });
+     }
+     let Model = getModel(role)
+     let entity = await Model.findOne({ mobileNumber });
+     if (entity) return res.status(400).json({ msg: `${role} already registered` });
+
+     
+     else if (role === 'owner' && (!aadhaarNumber || !address || !email)) {
+        return res.status(500).json({ msg: 'Aadhaar number, address and email details required for owner' });
+      }
+ 
+     entity = new Model({ 
+       mobileNumber,
+       name,
+       fcmToken,
+       ...(role === 'owner' && { aadhaarNumber, email, address }),
+     });
+     await entity.save();
+     const code = generateAndStoreOtp(mobileNumber);
+     console.log("Generated OTP:", code);
+    //  await sendVerificationCode(mobileNumber, code); // Pass the generated OTP to Twilio
+     
+     res.json({ msg: 'OTP sent', entity, code });
+   } catch (err) {
+     res.status(500).json({ msg: 'Server error', error: err.message });
+   }
+ });
+ 
+ // Login (Verify OTP)
+ router.post('/login', async (req, res) => {
+   const { mobileNumber, role, code } = req.body;
+   try {
+     if (!['user', 'driver', 'owner'].includes(role)) {
+       return res.status(400).json({ msg: 'Invalid role' });
+     }
+     let Model = getModel(role)
+     const entity = await Model.findOne({ mobileNumber });
+     if (!entity || !code) {
+        
+       // If user/driver doesn’t exist, treat it as a registration trigger
+       const code = generateAndStoreOtp(mobileNumber);
+       console.log(code)
+      //  await sendVerificationCode(mobileNumber, code);
+       return res.status(404).json({ msg: `OTP ${code} sent for registration` });
+     }
+ 
+     // Verify OTP
+     if (verifyOtp(mobileNumber, code)) {
+       entity.isVerified = true;
+       await entity.save();
+       const authToken = generateToken(entity) 
+       otpStore.delete(mobileNumber); // Clean up OTP after successful verification
+       res.json({ msg: `${role} logged in`, entity, authToken });
+     } else {
+       res.status(400).json({ msg: 'Invalid or expired OTP' });
+     }
+   } catch (err) {
+     res.status(500).json({ msg: 'Server error', error: err.message });
+   }
+ });
+ 
+ // Optional: Resend OTP
+ router.post('/resend-otp', async (req, res) => {
+   const { mobileNumber, role } = req.body;
+   try {
+     if (!['user', 'driver'].includes(role)) {
+       return res.status(400).json({ msg: 'Invalid role' });
+     }
+ 
+     const Model = getModel(role);
+     const entity = await Model.findOne({ mobileNumber });
+     if (!entity) return res.status(404).json({ msg: `${role} not found` });
+ 
+     const code = generateAndStoreOtp(mobileNumber);
+     await sendVerificationCode(mobileNumber, code);
+     res.json({ msg: 'OTP resent' });
+   } catch (err) {
+     res.status(500).json({ msg: 'Server error', error: err.message });
+   }
+ });
+ 
+module.exports = router, generateAndStoreOtp, verifyOtp;
