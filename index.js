@@ -15,6 +15,7 @@ const driverRoutes = require('./routes/driver'); // New
 const ownerRoutes = require('./routes/owner');
 const app = express();
 const PORT = process.env.PORT || 3000;
+const cors = require('cors');
 
 // Ensure the logs directory exists
 const logDirectory = "logs";
@@ -23,7 +24,7 @@ if (!fs.existsSync(logDirectory)) {
 }
 
 app.use(express.json());
-
+app.use(cors())
 // Middleware to log all requests
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.url}`);

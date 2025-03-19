@@ -47,6 +47,23 @@ router.post('/addCar', authenticateUser, async (req, res) => {
     }
 })
 
+router.get('/getCars', authenticateUser, async (req, res) => {
+    let msg
+    let userID = req.userID
+    try {
+        const cars = await Car.find({ owner: userID })
+        console.log(`cars ${cars}`)
+
+        msg = "all cars fetched"
+        return res.status(200).json({ msg, cars })
+    }
+    catch (err) {
+        console.log(err)
+        msg = "Error fetching cars"
+        return res.status(500).json({ msg, err })
+    }
+})
+
 router.put('/editCar/:carID', authenticateUser, async (req, res) => {
     const { carID } = req.params
     const { model, brand, type, seats, number } = req.body
@@ -99,10 +116,10 @@ router.get('/deleteCar/:id', authenticateUser, async (req, res) => {
 })
 
 router.post('/addDriver', authenticateUser, async (req, res) => {
-    const { mobileNumber, name, role, fcmToken, address, licenseNumber, aadhaarNumber, email } = req.body;
+    let { mobileNumber, name, role, fcmToken, address, licenseNumber, aadhaarNumber, email } = req.body;
     const { userID } = req
     try {
-
+        mobileNumber = "+91" + mobileNumber
         let entity = await Driver.findOne({ mobileNumber });
         if (entity) return res.status(400).json({ msg: `${role} already registered` });
 

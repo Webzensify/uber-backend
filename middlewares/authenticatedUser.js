@@ -3,8 +3,10 @@ const User = require('../models/User');
 const Driver = require('../models/Driver')
 const Owner = require('../models/Owner')
 const authenticateUser = async (req, res, next) => {
+    console.log(req.headers)
     const {authtoken, role} = req.headers;
     const {userId} = req.params;
+    console.log(`token: ${authtoken}, role: ${role}`)
     if (authtoken === undefined) {
         return res.status(500).json({msg: "authToken not defined"});
     }

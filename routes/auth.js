@@ -51,9 +51,10 @@ const generateToken = (entity) => {
    return storedOtp.code === code; // Match OTP
  };
  
- // Register (User or Driver)
+ // Register (User or Owner)
  router.post('/register', async (req, res) => {
-   const { mobileNumber, name, role, fcmToken, address, aadhaarNumber, email } = req.body;
+   let { mobileNumber, name, role, fcmToken, address, aadhaarNumber, email } = req.body;
+   mobileNumber = "+91" + mobileNumber
    console.log(role, aadhaarNumber, address, email)
    try {
      if (!['user', 'owner'].includes(role)) {
@@ -87,20 +88,23 @@ const generateToken = (entity) => {
  
  // Login (Verify OTP)
  router.post('/login', async (req, res) => {
-   const { mobileNumber, role, code } = req.body;
+   let { mobileNumber, role, code } = req.body;
    try {
+     mobileNumber = "+91" + mobileNumber
+   
      if (!['user', 'driver', 'owner'].includes(role)) {
        return res.status(400).json({ msg: 'Invalid role' });
      }
      let Model = getModel(role)
+     
      const entity = await Model.findOne({ mobileNumber });
+     console.log(entity, code)
      if (!entity || !code) {
-        
        // If user/driver doesn’t exist, treat it as a registration trigger
        const code = generateAndStoreOtp(mobileNumber);
        console.log(code)
       //  await sendVerificationCode(mobileNumber, code);
-       return res.status(404).json({ msg: `OTP ${code} sent for registration` });
+       return res.status(200).json({ msg: `OTP ${code} sent for registration` });
      }
  
      // Verify OTP
