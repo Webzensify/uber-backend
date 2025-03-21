@@ -10,12 +10,14 @@ const logger = require("./logger");
 const authRoutes = require('./routes/auth');
 const rideRoutes = require('./routes/ride');
 const paymentRoutes = require('./routes/payment');
-const userRoutes = require('./routes/user'); // New
-const driverRoutes = require('./routes/driver'); // New
+const userRoutes = require('./routes/user');
+const driverRoutes = require('./routes/driver');
 const ownerRoutes = require('./routes/owner');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const cors = require('cors');
+const http = require('http');
+const server = http.createServer(app);
 
 // Ensure the logs directory exists
 const logDirectory = "logs";
@@ -24,7 +26,7 @@ if (!fs.existsSync(logDirectory)) {
 }
 
 app.use(express.json());
-app.use(cors())
+app.use(cors());
 // Middleware to log all requests
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.url}`);
@@ -41,15 +43,10 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', authRoutes);
 app.use('/api/ride', rideRoutes);
 app.use('/api/payment', paymentRoutes);
-app.use('/api/user', userRoutes); // New
-app.use('/api/driver', driverRoutes); // New
-app.use('/api/owner', ownerRoutes)
+app.use('/api/user', userRoutes);
+app.use('/api/driver', driverRoutes);
+app.use('/api/owner', ownerRoutes);
 
-const server = app.listen(PORT, () => {
-  logger.info(`Server is running on port ${PORT}`);
-});
-
-// Socket.IO Server
 const io = new Server(server, {
   cors: { origin: '*' }, // Allow all origins (adjust for production)
 });
@@ -76,28 +73,57 @@ io.on('connection', (socket) => {
   });
 
   // Handle coordinates event
-  socket.on('coordinates', async(data) => {
-    socket.emit('message', {
-      msg: "hello"
-    })
+  socket.on('coordinates', async (data) => {
     const { rideId, currentLocation, driverId } = data || {};
-    console.log(rideId, currentLocation, driverId)
     if (!rideId || !currentLocation) {
       socket.emit('error', { message: 'rideId and coordinates required' });
       return;
     }
     const driver = await Driver.findById(driverId);
-    console.log(driver)
-    driver.currentLocation = currentLocation;
-    await driver.save()
-    // Broadcast coordinates to other clients in the room
-    socket.to(rideId).emit('driverUpdated', {
-      msg: "hello",
-      rideId,
-      driverId,
-      currentLocation
-    });
-    console.log(`driver current location updated `);
+    if (driver) {
+      driver.currentLocation = currentLocation;
+      await driver.save();
+      // Broadcast coordinates to other clients in the room
+      socket.to(rideId).emit('driverUpdated', { rideId, driverId, currentLocation });
+      console.log(`Driver's current location updated for ride ${rideId}`);
+    }
+  });
+
+  // Handle ride cancellation
+  socket.on('cancelRide', async ({ rideId, reason }) => {
+    try {
+      const ride = await Ride.findById(rideId);
+      if (!ride) {
+        socket.emit('error', { message: 'Ride not found' });
+        return;
+      }
+      ride.status = 'cancelled';
+      ride.cancelDetails = { by: socket.role, reason };
+      await ride.save();
+      io.to(rideId).emit('rideCancelled', { rideId, reason });
+      console.log(`Ride ${rideId} cancelled`);
+    } catch (err) {
+      console.error('Error cancelling ride:', err.message);
+      socket.emit('error', { message: 'Error cancelling ride' });
+    }
+  });
+
+  // Handle ride completion
+  socket.on('completeRide', async ({ rideId }) => {
+    try {
+      const ride = await Ride.findById(rideId);
+      if (!ride) {
+        socket.emit('error', { message: 'Ride not found' });
+        return;
+      }
+      ride.status = 'completed';
+      await ride.save();
+      io.to(rideId).emit('rideCompleted', { rideId });
+      console.log(`Ride ${rideId} completed`);
+    } catch (err) {
+      console.error('Error completing ride:', err.message);
+      socket.emit('error', { message: 'Error completing ride' });
+    }
   });
 
   // Handle disconnection
@@ -107,4 +133,8 @@ io.on('connection', (socket) => {
       // Socket.IO automatically removes the socket from rooms on disconnect
     }
   });
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

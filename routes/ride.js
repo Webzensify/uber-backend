@@ -7,6 +7,11 @@ const logger = require('../logger');
 const authenticateUser = require('../middlewares/authenticatedUser');
 const {sendNotification} = require('../services/notification');
 
+// get owner fleet 
+// complete ride
+// cancel ride
+// set driver status
+// set current car
 // user book, user accept
 // driver quote, driver see all available jobs
 

@@ -7,23 +7,7 @@ const Ride = require('../models/Ride');
 const logger = require('../logger')
 const authenticateUser = require('../middlewares/authenticatedUser')
 
-// In-memory OTP store (use Redis or a DB in production)
-const driverOtpStore = new Map(); // Key: mobileNumber, Value: { code, expiresAt }
 
-const generateAndStoreOtp = (mobileNumber) => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-    const expiresAt = Date.now() + 5 * 60 * 1000; // Expires in 5 minutes
-    driverOtpStore.set(mobileNumber, { code, expiresAt });
-    return code;
-};
-
-const verifyOtp = (mobileNumber, code) => {
-    const storedOtp = driverOtpStore.get(mobileNumber);
-    console.log("Stored OTP:", storedOtp);
-    if (!storedOtp) return false; // No OTP found
-
-    return storedOtp.code === code; // Match OTP
-};
 
 router.post('/addCar', authenticateUser, async (req, res) => {
     const { model, brand, type, seats, number, year, desc } = req.body
@@ -115,63 +99,6 @@ router.get('/deleteCar/:id', authenticateUser, async (req, res) => {
     }
 })
 
-router.post('/addDriver', authenticateUser, async (req, res) => {
-    let { mobileNumber, name, role, fcmToken, address, licenseNumber, aadhaarNumber, email } = req.body;
-    const { userID } = req
-    try {
-        mobileNumber = "+91" + mobileNumber
-        let entity = await Driver.findOne({ mobileNumber });
-        if (entity) return res.status(400).json({ msg: `${role} already registered` });
-
-        if (!licenseNumber || !aadhaarNumber) {
-            return res.status(400).json({ msg: 'License number and aadhaar number are required for driver' });
-        }
-
-        entity = new Driver({
-            mobileNumber,
-            name,
-            fcmToken,
-            owner: userID,
-            aadhaarNumber,
-            email,
-            address,
-            licenseNumber
-        });
-
-        const code = generateAndStoreOtp(mobileNumber);
-        console.log("Generated OTP:", code);
-        // await sendVerificationCode(mobileNumber, code); // Pass the generated OTP to Twilio
-        await entity.save();
-        res.json({ msg: 'OTP sent', entity, code });
-    } catch (err) {
-        res.status(500).json({ msg: 'Server error', error: err.message });
-    }
-});
-
-router.post('/loginDriver', authenticateUser, async (req, res) => {
-    const { code, mobileNumber } = req.body;
-    try {
-        const entity = await Driver.findOne({ mobileNumber });
-        console.log(`driverOTPstore: ${driverOtpStore}`)
-        if (entity) {
-            if (verifyOtp(mobileNumber, code)) {
-                entity.isVerified = true;
-                await entity.save();
-                driverOtpStore.delete(mobileNumber); // Clean up OTP after successful verification
-                res.json({ msg: `driver verified success`, entity });
-            } else {
-                res.status(400).json({ msg: 'Invalid or expired OTP' });
-            }
-        }
-        // Verify OTP
-
-    } catch (err) {
-        res.status(500).json({ msg: 'Server error', error: err.message });
-    }
-});
-
-
-
 router.get('/profile/:driverId', authenticateUser, async (req, res) => {
     try {
         const driver = await Driver.findById(req.params.driverId);
@@ -206,28 +133,64 @@ router.get('/allDrivers', authenticateUser, async (req, res) => {
 
 // all rides
 router.get('/allRides', authenticateUser, async (req, res) => {
-    const { userID } = req
-    let msg;
-    let rides = []
     try {
-        const drivers = await Driver.find({ owner: userID })
-        console.log(`drivers ${drivers}`)
-        for (driver in drivers) {
-            const id = driver.id
-            const driverRides = await Ride.find({ driver: id })
-            for (ride in driverRides) {
-                console.log(`ride ${ride}`)
-                rides.push(ride)
-            }
+        const drivers = await Driver.find({ owner: req.userID });
+        const rides = [];
+        for (const driver of drivers) {
+            const driverRides = await Ride.find({ driverId: driver._id });
+            rides.push(...driverRides);
         }
-        msg = "all rides fetched"
-        return res.status(200).json({ msg, rides })
+        return res.status(200).json({ msg: 'All rides fetched successfully', rides });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error fetching rides', error: err.message });
     }
-    catch (err) {
-        return res.status(500).json({ msg })
-    }
-})
+});
 
+// Connect to ongoing ride sockets
+router.get('/ongoingRides', authenticateUser, async (req, res) => {
+    try {
+        const drivers = await Driver.find({ owner: req.userID });
+        const ongoingRides = [];
+        for (const driver of drivers) {
+            const ride = await Ride.findOne({ driverId: driver._id, status: 'accepted' });
+            if (ride) ongoingRides.push(ride);
+        }
+        return res.status(200).json({ msg: 'Ongoing rides fetched successfully', ongoingRides });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error fetching ongoing rides', error: err.message });
+    }
+});
+
+// Block a driver
+router.put('/blockDriver/:driverId', authenticateUser, async (req, res) => {
+    const { driverId } = req.params;
+    try {
+        const driver = await Driver.findById(driverId);
+        if (!driver || driver.owner.toString() !== req.userID) {
+            return res.status(404).json({ msg: 'Driver not found or unauthorized' });
+        }
+        driver.status = 'blocked';
+        await driver.save();
+        return res.status(200).json({ msg: 'Driver blocked successfully', driver });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error blocking driver', error: err.message });
+    }
+});
+
+// Delete a driver
+router.delete('/deleteDriver/:driverId', authenticateUser, async (req, res) => {
+    const { driverId } = req.params;
+    try {
+        const driver = await Driver.findById(driverId);
+        if (!driver || driver.owner.toString() !== req.userID) {
+            return res.status(404).json({ msg: 'Driver not found or unauthorized' });
+        }
+        await Driver.findByIdAndDelete(driverId);
+        return res.status(200).json({ msg: 'Driver deleted successfully' });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error deleting driver', error: err.message });
+    }
+});
 
 router.get('/allCurrentRides', authenticateUser, async (req, res) => {
     const { userID } = req
@@ -248,5 +211,18 @@ router.get('/allCurrentRides', authenticateUser, async (req, res) => {
         return res.status(500).json({ msg })
     }
 })
+
+// Delete owner account
+router.delete('/deleteAccount', authenticateUser, async (req, res) => {
+    try {
+        const ownerId = req.userID;
+        await Driver.deleteMany({ owner: ownerId });
+        await Car.deleteMany({ owner: ownerId });
+        await Owner.findByIdAndDelete(ownerId);
+        return res.status(200).json({ msg: 'Owner account deleted successfully' });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error deleting account', error: err.message });
+    }
+});
 
 module.exports = router;
