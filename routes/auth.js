@@ -14,17 +14,22 @@ const otpStore = new Map(); // Key: mobileNumber, Value: { code, expiresAt }
 
 // Generate and store OTP with expiration
 const generateAndStoreOtp = (mobileNumber) => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-    const expiresAt = Date.now() + 5 * 60 * 1000; // Expires in 5 minutes
-    otpStore.set(mobileNumber, { code, expiresAt });
+    // const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+    const code = 2100
+    // const expiresAt = Date.now() + 5 * 60 * 1000; // Expires in 5 minutes
+    otpStore.set(mobileNumber, { code });
+    console.log(`set otps: ${otpStore}`)
     return code;
 };
 
 // Verify OTP
 const verifyOtp = (mobileNumber, code) => {
+    console.log(`otps: ${otpStore}`)
     const storedOtp = otpStore.get(mobileNumber);
-    if (!storedOtp || storedOtp.expiresAt < Date.now()) return false; // OTP expired or not found
-    return storedOtp.code === code; // Match OTP
+    console.log(storedOtp.code, code)
+    console.log(parseInt(storedOtp.code) === parseInt(code))
+    // if (!storedOtp || storedOtp.expiresAt < Date.now()) return false; // OTP expired or not found
+    return parseInt(storedOtp.code) === parseInt(code); // Match OTP
 };
 
 // Get model based on role
@@ -39,21 +44,24 @@ const getModel = (role) => {
 
 // Register (User, Owner, Admin, Operational Admin)
 router.post('/register', async (req, res) => {
-    const { role, name, mobileNumber } = req.body;
+    const { role, name, mobileNumber, email } = req.body;
     try {
         const Model = getModel(role);
         if (!Model) return res.status(400).json({ msg: 'Invalid role' });
 
         const existingEntity = await Model.findOne({ mobileNumber });
-        if (existingEntity) return res.status(400).json({ msg: `${role} already registered` });
+        if (!existingEntity) {
+            const entity = new Model({
+                name, mobileNumber,
+                ...(role === 'owner' && { email }),
+            });
+            await entity.save();
 
-        const entity = new Model({ name, mobileNumber });
-        await entity.save();
+        };
 
         const code = generateAndStoreOtp(mobileNumber);
-        await sendVerificationCode(mobileNumber, code);
 
-        return res.status(201).json({ msg: `${role} registered successfully. OTP sent to ${mobileNumber}` });
+        return res.status(201).json({ msg: `${role} registered successfully. OTP ${code} sent to ${mobileNumber}` });
     } catch (err) {
         return res.status(500).json({ msg: 'Error registering', error: err.message });
     }
@@ -73,7 +81,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ msg: 'Invalid or expired OTP' });
         }
 
-        const token = jwt.sign({ id: entity._id, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ id: entity._id, role }, process.env.JWT_SECRET);
         otpStore.delete(mobileNumber); // Clean up OTP after successful verification
 
         return res.status(200).json({ msg: `${role} logged in successfully`, token });
@@ -126,21 +134,21 @@ router.post('/addDriver', authenticateUser, async (req, res) => {
 
         const code = generateAndStoreOtp(mobileNumber);
         console.log("Generated OTP:", code);
-        await sendVerificationCode(mobileNumber, code); // Pass the generated OTP to Twilio
+        // await sendVerificationCode(mobileNumber, code); // Pass the generated OTP to Twilio
         await entity.save();
         res.json({ msg: 'OTP sent', entity, code });
     } catch (err) {
         res.status(500).json({ msg: 'Server error', error: err.message });
     }
-}); 
+});
 
 router.post('/loginDriver', authenticateUser, async (req, res) => {
-    const { code, mobileNumber } = req.body;
+    const { otp, mobileNumber } = req.body;
     try {
         const entity = await Driver.findOne({ mobileNumber });
         // console.log(`driverOTPstore: ${driverOtpStore}`)
         if (entity) {
-            if (verifyOtp(mobileNumber, code)) {
+            if (verifyOtp(mobileNumber, otp)) {
                 entity.isVerified = true;
                 await entity.save();
                 OtpStore.delete(mobileNumber); // Clean up OTP after successful verification
