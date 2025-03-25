@@ -9,13 +9,14 @@ const jwt = require('jsonwebtoken');
 const { sendVerificationCode } = require('../services/sms');
 const authenticateUser = require('../middlewares/authenticatedUser');
 
+
 // In-memory OTP store (use Redis or a DB in production)
 const otpStore = new Map(); // Key: mobileNumber, Value: { code, expiresAt }
 
 // Generate and store OTP with expiration
 const generateAndStoreOtp = (mobileNumber) => {
     // const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-    const code = 2100
+    const code = 210000
     // const expiresAt = Date.now() + 5 * 60 * 1000; // Expires in 5 minutes
     otpStore.set(mobileNumber, { code });
     console.log(`set otps: ${otpStore}`)
@@ -44,24 +45,32 @@ const getModel = (role) => {
 
 // Register (User, Owner, Admin, Operational Admin)
 router.post('/register', async (req, res) => {
-    const { role, name, mobileNumber, email } = req.body;
+    const { role, name, mobileNumber, email, otp, aadhaarNumber, address } = req.body;
+
     try {
         const Model = getModel(role);
         if (!Model) return res.status(400).json({ msg: 'Invalid role' });
 
         const existingEntity = await Model.findOne({ mobileNumber });
-        if (!existingEntity) {
-            const entity = new Model({
-                name, mobileNumber,
-                ...(role === 'owner' && { email }),
-            });
-            await entity.save();
+        if (existingEntity) return res.status(400).json({ msg: `${role} already registered` });
 
-        };
+        // Validate OTP
+        if (!verifyOtp(mobileNumber, otp)) {
+            return res.status(400).json({ msg: 'Invalid or expired OTP' });
+        }
 
-        const code = generateAndStoreOtp(mobileNumber);
+        // Create a new user
+        const entity = new Model({
+            name,
+            mobileNumber,
+            ...(role === 'owner' && { email, aadhaarNumber, address }),
+        });
+        await entity.save();
 
-        return res.status(201).json({ msg: `${role} registered successfully. OTP ${code} sent to ${mobileNumber}` });
+        const token = jwt.sign({ id: entity._id, role }, process.env.JWT_SECRET);
+        otpStore.delete(mobileNumber); // Clean up OTP after successful verification
+
+        return res.status(201).json({ msg: `${role} registered successfully`, entity, token });
     } catch (err) {
         return res.status(500).json({ msg: 'Error registering', error: err.message });
     }
@@ -70,6 +79,7 @@ router.post('/register', async (req, res) => {
 // Login (User, Owner, Admin, Operational Admin)
 router.post('/login', async (req, res) => {
     const { role, mobileNumber, otp } = req.body;
+
     try {
         const Model = getModel(role);
         if (!Model) return res.status(400).json({ msg: 'Invalid role' });
@@ -77,37 +87,37 @@ router.post('/login', async (req, res) => {
         const entity = await Model.findOne({ mobileNumber });
         if (!entity) return res.status(404).json({ msg: `${role} not found` });
 
+        // Validate OTP
         if (!verifyOtp(mobileNumber, otp)) {
             return res.status(400).json({ msg: 'Invalid or expired OTP' });
         }
 
         const token = jwt.sign({ id: entity._id, role }, process.env.JWT_SECRET);
+        
         otpStore.delete(mobileNumber); // Clean up OTP after successful verification
-
-        return res.status(200).json({ msg: `${role} logged in successfully`, token });
+        
+        return res.status(200).json({ msg: `${role} logged in successfully`,entity, token });
     } catch (err) {
         return res.status(500).json({ msg: 'Error logging in', error: err.message });
     }
 });
 
 // Resend OTP
-router.post('/resend-otp', async (req, res) => {
+router.post('/send-otp', async (req, res) => {
     const { mobileNumber, role } = req.body;
     try {
         const Model = getModel(role);
         if (!Model) return res.status(400).json({ msg: 'Invalid role' });
 
-        const entity = await Model.findOne({ mobileNumber });
-        if (!entity) return res.status(404).json({ msg: `${role} not found` });
-
         const code = generateAndStoreOtp(mobileNumber);
-        await sendVerificationCode(mobileNumber, code);
+        // await sendVerificationCode(mobileNumber, code); // Uncomment to integrate with SMS service
 
-        return res.status(200).json({ msg: 'OTP resent successfully' });
+        return res.status(200).json({ msg: `OTP sent to ${mobileNumber}` });
     } catch (err) {
-        return res.status(500).json({ msg: 'Error resending OTP', error: err.message });
+        return res.status(500).json({ msg: 'Error sending OTP', error: err.message });
     }
 });
+
 
 router.post('/addDriver', authenticateUser, async (req, res) => {
     let { mobileNumber, name, role, fcmToken, address, licenseNumber, aadhaarNumber, email } = req.body;
