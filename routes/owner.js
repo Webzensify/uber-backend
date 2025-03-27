@@ -146,7 +146,7 @@ router.get('/allRides', authenticateUser, async (req, res) => {
     }
 });
 
-// Connect to ongoing ride sockets
+// get ongoing ride sockets
 router.get('/ongoingRides', authenticateUser, async (req, res) => {
     try {
         const drivers = await Driver.find({ owner: req.userID });
@@ -166,6 +166,7 @@ router.put('/blockDriver/:driverId', authenticateUser, async (req, res) => {
     const { driverId } = req.params;
     try {
         const driver = await Driver.findById(driverId);
+        console.log(driver, req.userID, driver.owner)
         if (!driver || driver.owner.toString() !== req.userID) {
             return res.status(404).json({ msg: 'Driver not found or unauthorized' });
         }
@@ -192,25 +193,26 @@ router.delete('/deleteDriver/:driverId', authenticateUser, async (req, res) => {
     }
 });
 
-router.get('/allCurrentRides', authenticateUser, async (req, res) => {
-    const { userID } = req
-    let msg;
-    let rides = []
-    try {
-        const drivers = await Driver.find({ owner: userID })
-        console.log(`drivers ${drivers}`)
-        for (driver in drivers) {
-            const id = driver.id
-            const driverRide = await Ride.findOne({ driver: id, status: 'accepted' })
-            rides.push(driverRide)
-        }
-        msg = "all current rides fetched"
-        return res.status(200).json({ msg, rides })
-    }
-    catch (err) {
-        return res.status(500).json({ msg })
-    }
-})
+// router.get('/allCurrentRides', authenticateUser, async (req, res) => {
+//     const { userID } = req
+//     let msg;
+//     let rides = []
+//     try {
+//         const drivers = await Driver.find({ owner: userID })
+//         console.log(`drivers ${drivers}`)
+//         for (driver in drivers) {
+//             console.log(`driver name: ${driver.name}`)
+//             const id = driver.id
+//             const driverRide = await Ride.findOne({ driver: id })
+//             rides.push(driverRide)
+//         }
+//         msg = "all current rides fetched"
+//         return res.status(200).json({ msg, rides })
+//     }
+//     catch (err) {
+//         return res.status(500).json({ msg })
+//     }
+// })
 
 // Delete owner account
 router.delete('/deleteAccount', authenticateUser, async (req, res) => {

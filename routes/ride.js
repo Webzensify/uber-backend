@@ -17,7 +17,8 @@ const {sendNotification} = require('../services/notification');
 
 // Add a Ride (User specifies destination)
 router.post('/add', authenticateUser, async (req, res) => {
-    const {userId, pickupLocation, dropoffLocation} = req.body;
+    const {pickupLocation, dropoffLocation} = req.body;
+    const userId = req.userID
     try {
         const user = await User.findById(userId);
         if (!user) {
@@ -60,7 +61,8 @@ router.post('/add', authenticateUser, async (req, res) => {
 
 // Driver adds a quote to the Ride
 router.post('/quote', authenticateUser, async (req, res) => {
-    const {rideId, driverId, fare, currentLocation} = req.body;
+    const {rideId, fare, currentLocation} = req.body;
+    const driverId =  req.userID
     try {
         const ride = await Ride.findById(rideId);
         if (!ride || ride.status !== 'pending') {

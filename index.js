@@ -13,6 +13,8 @@ const paymentRoutes = require('./routes/payment');
 const userRoutes = require('./routes/user');
 const driverRoutes = require('./routes/driver');
 const ownerRoutes = require('./routes/owner');
+const adminRoutes = require('./routes/admin');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const cors = require('cors');
@@ -46,7 +48,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/owner', ownerRoutes);
-
+app.use('/api/admin', adminRoutes);
 const io = new Server(server, {
   cors: { origin: '*' }, // Allow all origins (adjust for production)
 });

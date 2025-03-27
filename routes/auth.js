@@ -67,7 +67,7 @@ router.post('/register', async (req, res) => {
         });
         await entity.save();
 
-        const token = jwt.sign({ id: entity._id, role }, process.env.JWT_SECRET);
+        const token = jwt.sign({ id: entity._id }, process.env.JWT_SECRET);
         otpStore.delete(mobileNumber); // Clean up OTP after successful verification
 
         return res.status(201).json({ msg: `${role} registered successfully`, entity, token });
@@ -90,9 +90,8 @@ router.post('/login', async (req, res) => {
         // Validate OTP
         if (!verifyOtp(mobileNumber, otp)) {
             return res.status(400).json({ msg: 'Invalid or expired OTP' });
-        }
-
-        const token = jwt.sign({ id: entity._id, role }, process.env.JWT_SECRET);
+        }    
+        const token = jwt.sign({ id: entity._id }, process.env.JWT_SECRET);
         
         otpStore.delete(mobileNumber); // Clean up OTP after successful verification
         

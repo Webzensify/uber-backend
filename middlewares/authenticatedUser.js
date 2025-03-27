@@ -8,12 +8,15 @@ const OperationalAdmin = require('../models/OperationalAdmin');
 const authenticateUser = async (req, res, next) => {
     console.log(req.headers);
     const { authtoken, role } = req.headers;
-    const { userId } = req.params;
-    if (authtoken === undefined) {
-        return res.status(500).json({ msg: "authToken not defined" });
+    if (!authtoken) {
+        return res.status(401).json({ msg: "AuthToken not provided" });
     }
     try {
         const data = jwt.verify(authtoken, process.env.JWT_SECRET);
+        if (!data || !data.id) {
+            return res.status(401).json({ msg: "Invalid token payload" });
+        }
+
         let Model;
         if (role === "owner") {
             Model = Owner;
@@ -28,15 +31,20 @@ const authenticateUser = async (req, res, next) => {
         } else {
             return res.status(400).json({ msg: 'Invalid role' });
         }
-        console.log(`data: ${data.user}`);
-        req.user = await Model.findById(data.user.id);
-        req.userID = data.user.id;
+
+        const user = await Model.findById(data.id);
+        if (!user) {
+            return res.status(404).json({ msg: "User not found" });
+        }
+        console.log(`dataid: ${data.id}`)
+        req.user = user;
+        req.userID = data.id;
         req.user.role = role;
-        console.log('req.user ', req.user);
+        console.log('Authenticated user:', req.user);
         next();
     } catch (e) {
-        console.log(e);
-        res.json({ msg: "Invalid AuthToken" });
+        console.error('Authentication error:', e.message);
+        res.status(401).json({ msg: "Invalid AuthToken" });
     }
 };
 
