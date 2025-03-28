@@ -49,14 +49,24 @@ router.post('/register', async (req, res) => {
 
     try {
         const Model = getModel(role);
-        if (!Model) return res.status(400).json({ msg: 'Invalid role' });
+        if (!Model) {
+            const msg = `Invalid role provided: ${role}`;
+            logger.error(msg);
+            return res.status(400).json({ msg });
+        }
 
         const existingEntity = await Model.findOne({ mobileNumber });
-        if (existingEntity) return res.status(400).json({ msg: `${role} already registered` });
+        if (existingEntity) {
+            const msg = `${role} with mobile number ${mobileNumber} already registered`;
+            logger.error(msg);
+            return res.status(400).json({ msg });
+        }
 
         // Validate OTP
         if (!verifyOtp(mobileNumber, otp)) {
-            return res.status(400).json({ msg: 'Invalid or expired OTP' });
+            const msg = `Invalid or expired OTP for mobile number ${mobileNumber}`;
+            logger.error(msg);
+            return res.status(400).json({ msg });
         }
 
         // Create a new user
@@ -70,9 +80,13 @@ router.post('/register', async (req, res) => {
         const token = jwt.sign({ id: entity._id }, process.env.JWT_SECRET);
         otpStore.delete(mobileNumber); // Clean up OTP after successful verification
 
-        return res.status(201).json({ msg: `${role} registered successfully`, entity, token });
+        const msg = `${role} registered successfully with mobile number ${mobileNumber}`;
+        logger.info(msg);
+        return res.status(201).json({ msg, entity, token });
     } catch (err) {
-        return res.status(500).json({ msg: 'Error registering', error: err.message });
+        const msg = `Error registering ${role} with mobile number ${mobileNumber}`;
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({ msg, error: err.message });
     }
 });
 
@@ -172,81 +186,4 @@ router.post('/loginDriver', authenticateUser, async (req, res) => {
         res.status(500).json({ msg: 'Server error', error: err.message });
     }
 });
-
-// Get all rides (Admin and Operational Admin)
-router.get('/allRides', authenticateUser, async (req, res) => {
-    try {
-        if (!['admin', 'operational admin'].includes(req.user.role)) {
-            return res.status(403).json({ msg: 'Unauthorized' });
-        }
-        const rides = await Ride.find().populate('driverId userId', 'name mobileNumber');
-        return res.status(200).json({ msg: 'All rides fetched successfully', rides });
-    } catch (err) {
-        return res.status(500).json({ msg: 'Error fetching rides', error: err.message });
-    }
-});
-
-// Get all drivers (Admin and Operational Admin)
-router.get('/allDrivers', authenticateUser, async (req, res) => {
-    try {
-        if (!['admin', 'operational admin'].includes(req.user.role)) {
-            return res.status(403).json({ msg: 'Unauthorized' });
-        }
-        const drivers = await Driver.find().populate('owner', 'name email');
-        return res.status(200).json({ msg: 'All drivers fetched successfully', drivers });
-    } catch (err) {
-        return res.status(500).json({ msg: 'Error fetching drivers', error: err.message });
-    }
-});
-
-// Block a driver (Admin and Operational Admin)
-router.put('/blockDriver/:driverId', authenticateUser, async (req, res) => {
-    const { driverId } = req.params;
-    try {
-        if (!['admin', 'operational admin'].includes(req.user.role)) {
-            return res.status(403).json({ msg: 'Unauthorized' });
-        }
-        const driver = await Driver.findById(driverId);
-        if (!driver) return res.status(404).json({ msg: 'Driver not found' });
-
-        driver.status = 'blocked';
-        await driver.save();
-        return res.status(200).json({ msg: 'Driver blocked successfully', driver });
-    } catch (err) {
-        return res.status(500).json({ msg: 'Error blocking driver', error: err.message });
-    }
-});
-
-// Delete a driver (Admin and Operational Admin)
-router.delete('/deleteDriver/:driverId', authenticateUser, async (req, res) => {
-    const { driverId } = req.params;
-    try {
-        if (!['admin', 'operational admin'].includes(req.user.role)) {
-            return res.status(403).json({ msg: 'Unauthorized' });
-        }
-        const driver = await Driver.findById(driverId);
-        if (!driver) return res.status(404).json({ msg: 'Driver not found' });
-
-        await Driver.findByIdAndDelete(driverId);
-        return res.status(200).json({ msg: 'Driver deleted successfully' });
-    } catch (err) {
-        return res.status(500).json({ msg: 'Error deleting driver', error: err.message });
-    }
-});
-
-// Check all operations (Admin and Operational Admin)
-router.get('/allOperations', authenticateUser, async (req, res) => {
-    try {
-        if (!['admin', 'operational admin'].includes(req.user.role)) {
-            return res.status(403).json({ msg: 'Unauthorized' });
-        }
-        const owners = await Owner.find().select('name email mobileNumber');
-        const drivers = await Driver.find().select('name email mobileNumber');
-        const rides = await Ride.find().select('pickupLocation dropoffLocation status');
-        return res.status(200).json({ msg: 'All operations fetched successfully', data: { owners, drivers, rides } });
-    } catch (err) {
-        return res.status(500).json({ msg: 'Error fetching operations', error: err.message });
-    }
-});
-
 module.exports = router;

@@ -6,6 +6,26 @@ const User = require('../models/User');
 const logger = require('../logger');
 const authenticateUser = require('../middlewares/authenticatedUser');
 const {sendNotification} = require('../services/notification');
+const { Client } = require('@googlemaps/google-maps-services-js');
+const client = new Client({});
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY; // Ensure this is set in your environment variables
+
+// Utility function to calculate distance using Google Maps API
+async function calculateDistance(origin, destination) {
+    try {
+        const response = await client.distancematrix({
+            params: {
+                origins: [`${origin.latitude},${origin.longitude}`],
+                destinations: [`${destination.latitude},${destination.longitude}`],
+                key: GOOGLE_MAPS_API_KEY,
+            },
+        });
+        const distance = response.data.rows[0].elements[0].distance.value; // Distance in meters
+        return distance;
+    } catch (err) {
+        throw new Error(`Error calculating distance: ${err.message}`);
+    }
+}
 
 // get owner fleet 
 // complete ride
@@ -20,12 +40,17 @@ router.post('/add', authenticateUser, async (req, res) => {
     const {pickupLocation, dropoffLocation} = req.body;
     const userId = req.userID
     try {
+        logger.info(`Add ride request received from user ID ${userId}`);
         const user = await User.findById(userId);
         if (!user) {
-            const msg = 'User not found';
+            const msg = `User with ID ${userId} not found`;
             logger.error(msg);
             return res.status(400).json({msg});
         }
+
+        // Calculate distance between pickup and dropoff locations
+        const distance = await calculateDistance(pickupLocation, dropoffLocation);
+
         const ride = new Ride({
             userId,
             pickupLocation: {
@@ -38,6 +63,7 @@ router.post('/add', authenticateUser, async (req, res) => {
                 latitude: dropoffLocation.latitude,
                 desc: dropoffLocation.desc
             },
+            distance, // Store distance in the ride document
         });
         await ride.save();
 
@@ -50,29 +76,31 @@ router.post('/add', authenticateUser, async (req, res) => {
                 `Pickup: ${pickupLocation.desc}, Dropoff: ${dropoffLocation.desc}`
             );
         }
-        const msg = 'Ride added, notifying drivers';
+        const msg = `Ride added successfully with ID ${ride._id}, notifying available drivers`;
         logger.info(msg);
-        return res.json({msg, rideId: ride._id});
+        return res.json({msg, rideId: ride._id, distance});
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Server error', error: err.message});
+        const msg = 'Error adding ride';
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({msg, error: err.message});
     }
 });
 
 // Driver adds a quote to the Ride
 router.post('/quote', authenticateUser, async (req, res) => {
-    const {rideId, fare, currentLocation} = req.body;
+    const {rideId, fare, currentLocation, pickupLocation} = req.body;
     const driverId =  req.userID
     try {
+        logger.info(`Driver ID ${driverId} adding quote for ride ID ${rideId}`);
         const ride = await Ride.findById(rideId);
         if (!ride || ride.status !== 'pending') {
-            const msg = 'Invalid ride';
+            const msg = `Invalid ride ID ${rideId} or ride not in pending status`;
             logger.error(msg);
             return res.status(400).json({msg});
         }
         const driver = await Driver.findById(driverId);
         if (!driver) {
-            const msg = 'Driver not verified';
+            const msg = `Driver with ID ${driverId} not verified`;
             logger.error(msg);
             return res.status(400).json({msg});
         }
@@ -96,30 +124,32 @@ router.post('/quote', authenticateUser, async (req, res) => {
             'Quote added',
             `Driver ${driver.name} has added a quote to your ride. Please review the quote.`
         );
-        const msg = 'Quote added, user notified';
+        const msg = `Quote added successfully by driver ID ${driverId} for ride ID ${rideId}`;
         logger.info(msg);
         return res.json({msg, rideId: ride._id});
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Server error', error: err.message});
+        const msg = `Error adding quote for ride ID ${rideId}`;
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({msg, error: err.message});
     }
 });
 
 router.post('/book', authenticateUser, async (req, res) => {
     const {fare, driverId, rideId} = req.body;
     try {
+        logger.info(`Booking ride ID ${rideId} with driver ID ${driverId}`);
         const ride = await Ride.findById(rideId);
         if (!ride) {
-            const msg = 'Ride not found';
+            const msg = `Ride with ID ${rideId} not found`;
             logger.error(msg);
-            return res.status(500).json({msg});
+            return res.status(404).json({msg});
         }
         ride.driverId = driverId;
         ride.fare = fare;
         ride.status = 'accepted';
         ride.otp = Math.floor(100000 + Math.random() * 900000);
         await ride.save();
-        const msg = `ride ${rideId} booked now proceed to make the payments`;
+        const msg = `Ride with ID ${rideId} booked successfully. Proceed to make the payment.`;
         logger.info(msg);
         return res.status(200).json({
             msg,
@@ -127,23 +157,44 @@ router.post('/book', authenticateUser, async (req, res) => {
             action: 'join_websocket_room'
         });
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Server error', error: err.message});
+        const msg = `Error booking ride with ID ${rideId}`;
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({msg, error: err.message});
     }
 });
 
 // Get All Pending Rides
 router.get('/pending', authenticateUser, async (req, res) => {
+    const driverId = req.userID;
+    const {currentLocation} = req.body
     try {
-        const pendingRides = await Ride.find({status: 'pending'})
+        logger.info(`Fetching all pending rides for driver ID ${driverId}`);
+        const driver = await Driver.findById(driverId);
+        if (!driver) {
+            const msg = `Driver with ID ${driverId} not found`;
+            logger.error(msg);
+            return res.status(404).json({ msg });
+        }
+
+        const pendingRides = await Ride.find({ status: 'pending' })
             .populate('userId', 'name mobileNumber') // Populate user details
             .select('-__v'); // Exclude version field
-        const msg = 'Pending rides retrieved';
-        // logger.info(msg);
-        return res.json({msg, rides: pendingRides});
+
+        const filteredRides = [];
+        for (const ride of pendingRides) {
+            const distance = await calculateDistance(currentLocation, ride.pickupLocation);
+            if (distance <= 2000) { // 2 km in meters
+                filteredRides.push(ride);
+            }
+        }
+
+        const msg = 'Pending rides retrieved successfully';
+        logger.info(msg);
+        return res.json({ msg, rides: filteredRides });
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Server error', error: err.message});
+        const msg = 'Error retrieving pending rides';
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({ msg, error: err.message });
     }
 });
 
@@ -151,13 +202,20 @@ router.get('/pending', authenticateUser, async (req, res) => {
 router.get('/quotes/:rideId', authenticateUser, async (req, res) => {
     try {
         const {rideId} = req.params;
+        logger.info(`Fetching quotes for ride ID ${rideId}`);
         const ride = await Ride.findById(rideId);
-        const msg = 'ride quotes retrieved';
+        if (!ride) {
+            const msg = `Ride with ID ${rideId} not found`;
+            logger.error(msg);
+            return res.status(404).json({msg});
+        }
+        const msg = `Quotes retrieved successfully for ride ID ${rideId}`;
         logger.info(msg);
         return res.json({msg, quotes: ride.quote});
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Server error', error: err.message});
+        const msg = `Error retrieving quotes for ride ID ${rideId}`;
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({msg, error: err.message});
     }
 });
 
@@ -165,6 +223,7 @@ router.get('/quotes/:rideId', authenticateUser, async (req, res) => {
 router.get('/:rideId', authenticateUser, async (req, res) => {
     try {
         const {rideId} = req.params;
+        logger.info(`Fetching details for ride ID ${rideId}`);
         const ride = await Ride.findById(rideId)
             .populate('userId', 'name mobileNumber') // Populate user details
             .populate({
@@ -172,16 +231,17 @@ router.get('/:rideId', authenticateUser, async (req, res) => {
                 select: 'owner mobileNumber isVerified name licenseNumber aadhaarNumber vehicleDetails isAvailable email'
             }); // Populate full driver details
         if (!ride) {
-            const msg = 'Ride not found';
+            const msg = `Ride with ID ${rideId} not found`;
             logger.error(msg);
             return res.status(404).json({msg});
         }
-        const msg = 'Ride details retrieved';
+        const msg = `Ride details retrieved successfully for ride ID ${rideId}`;
         logger.info(msg);
         return res.json({msg, ride});
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Server error', error: err.message});
+        const msg = `Error retrieving ride details for ride ID ${rideId}`;
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({msg, error: err.message});
     }
 });
 
@@ -189,11 +249,12 @@ router.get('/:rideId', authenticateUser, async (req, res) => {
 router.post('/cancel', authenticateUser, async (req, res) => {
     const {rideId, reason} = req.body;
     try {
+        logger.info(`Cancelling ride ID ${rideId} with reason: ${reason}`);
         const ride = await Ride.findById(rideId);
         if (!ride) {
-            const msg = 'Ride not found';
+            const msg = `Ride with ID ${rideId} not found`;
             logger.error(msg);
-            return res.status(500).json({msg: 'Internal Server Error'});
+            return res.status(404).json({msg});
         }
         ride.status = 'cancelled';
         ride.cancelDetails = {
@@ -201,12 +262,13 @@ router.post('/cancel', authenticateUser, async (req, res) => {
             reason: reason
         };
         await ride.save();
-        const msg = 'Ride cancelled successfully';
+        const msg = `Ride with ID ${rideId} cancelled successfully`;
         logger.info(msg);
         return res.status(200).json({msg, reason, ride});
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Error occurred while cancelling the ride', err});
+        const msg = `Error cancelling ride with ID ${rideId}`;
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({msg, error: err.message});
     }
 });
 
@@ -214,22 +276,28 @@ router.post('/cancel', authenticateUser, async (req, res) => {
 router.post('/verifyOtp', authenticateUser, async (req, res) => {
     const {otp, rideId} = req.body;
     try {
+        logger.info(`Verifying OTP for ride ID ${rideId}`);
         const ride = await Ride.findById(rideId);
-        if (!ride) return res.status(500).json({msg: 'Internal Server Error, Ride not found'});
+        if (!ride) {
+            const msg = `Ride with ID ${rideId} not found`;
+            logger.error(msg);
+            return res.status(404).json({msg});
+        }
         if (parseInt(otp) === ride.otp) {
-            const msg = 'OTP verified, ride complete';
             ride.status = 'completed';
-            ride.save();
+            await ride.save();
+            const msg = `OTP verified successfully for ride ID ${rideId}. Ride marked as completed.`;
             logger.info(msg);
             return res.status(200).json({msg, ride});
         } else {
-            const msg = 'Incorrect OTP';
-            logger.info(msg);
-            return res.status(500).json({msg, ride});
+            const msg = `Incorrect OTP for ride ID ${rideId}`;
+            logger.error(msg);
+            return res.status(400).json({msg, ride});
         }
     } catch (err) {
-        logger.error(err.message);
-        return res.status(500).json({msg: 'Internal Server error', error: err.message});
+        const msg = `Error verifying OTP for ride ID ${rideId}`;
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({msg, error: err.message});
     }
 });
 

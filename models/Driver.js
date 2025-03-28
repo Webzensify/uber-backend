@@ -7,7 +7,7 @@ const driverSchema = new mongoose.Schema({
    },
   mobileNumber: { type: String, required: true, unique: true },
   isVerified: { type: Boolean, default: false },
-  status: {type: String, enums: ['active', 'blocked', 'deleted']},
+  status: {type: String, enums: ['active', 'blocked']},
   name: { type: String },
   licenseNumber: { type: String, required: true},
   aadhaarNumber: { type: String, required: true},
