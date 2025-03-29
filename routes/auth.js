@@ -102,9 +102,11 @@ router.post('/login', async (req, res) => {
         if (!entity) return res.status(404).json({ msg: `${role} not found` });
 
         // Validate OTP
+        console.log("checking otp")
         if (!verifyOtp(mobileNumber, otp)) {
             return res.status(400).json({ msg: 'Invalid or expired OTP' });
         }    
+        console.log("verified otp")
         const token = jwt.sign({ id: entity._id }, process.env.JWT_SECRET);
         
         otpStore.delete(mobileNumber); // Clean up OTP after successful verification
