@@ -49,30 +49,36 @@ router.get('/getCars', authenticateUser, async (req, res) => {
 })
 
 router.put('/editCar/:carID', authenticateUser, async (req, res) => {
-    const { carID } = req.params
-    const { model, brand, type, seats, number } = req.body
-    let msg
+    const { carID } = req.params;
+    const { model, brand, type, seats, number, desc, year } = req.body; // Include all fields
+    let msg;
     try {
-        const car = await Car.findByID(carID)
-        if (car.owner !== req.userID) {
-            msg = "car belongs to someone else"
-            return res.status(500).json(msg)
+        const car = await Car.findById(carID); // Correct method name
+        if (!car) {
+            return res.status(404).json({ msg: "Car not found" }); // Handle car not found
         }
-        car.model = model || car.model
-        car.brand = brand || car.brand
-        car.type = type || car.type
-        car.seats = seats || car.seats
-        car.number = number || car.number
-        await car.save()
-        msg = `Car ${carID} updated `
-        return res.status(200).json({ msg, car })
+        if (car.owner !== req.userID) {
+            return res.status(403).json({ msg: "You are not authorized to edit this car" }); // Proper status code
+        }
+
+        // Update fields if provided
+        car.model = model || car.model;
+        car.brand = brand || car.brand;
+        car.type = type || car.type;
+        car.seats = seats || car.seats;
+        car.number = number || car.number;
+        car.desc = desc || car.desc; // Include description
+        car.year = year || car.year; // Include year
+
+        await car.save();
+        msg = `Car ${carID} updated successfully`;
+        return res.status(200).json({ msg, car });
+    } catch (err) {
+        console.error(err);
+        msg = "Error updating the car";
+        return res.status(500).json({ msg, err });
     }
-    catch (err) {
-        console.log(err)
-        msg = "Error updating the car "
-        return res.status(500).json({ msg, err })
-    }
-})
+});
 
 
 router.delete('/deleteCar/:id', authenticateUser, async (req, res) => {
