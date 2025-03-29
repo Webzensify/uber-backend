@@ -75,29 +75,24 @@ router.put('/editCar/:carID', authenticateUser, async (req, res) => {
 })
 
 
-router.get('/deleteCar/:id', authenticateUser, async (req, res) => {
-    const { id } = req.params
-    const userID = req.userID
-    let msg
+router.delete('/deleteCar/:id', authenticateUser, async (req, res) => {
+    const { id } = req.params;
+    const userID = req.userID;
     try {
-        const car = await Car.findByID(id)
+        const car = await Car.findById(id);
+        if (!car) {
+            return res.status(404).json({ msg: "Car not found" });
+        }
         if (car.owner !== userID) {
-            msg = "car belongs to someone else"
-            return res.status(500).json(msg)
+            return res.status(403).json({ msg: "You are not authorized to delete this car" });
         }
-        else {
-            msg = "car deleted"
-            await Car.findByIdAndDelete(id);
-        }
-
-        return res.status(200).json({ msg })
+        await Car.findByIdAndDelete(id);
+        return res.status(200).json({ msg: "Car deleted successfully" });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ msg: "An error occurred while deleting the car", err });
     }
-    catch (err) {
-        console.log(err)
-        msg = "Error adding car"
-        return res.status(500).json({ msg, err })
-    }
-})
+});
 
 router.get('/profile/:driverId', authenticateUser, async (req, res) => {
     try {
