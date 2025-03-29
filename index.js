@@ -29,7 +29,7 @@ if (!fs.existsSync(logDirectory)) {
 
 app.use(express.json());
 app.use(cors({
-  origin: "https://travelo.netlify.app",  // Change to your Netlify URL for security
+  origin: "*",  // Change to your Netlify URL for security
   methods: "GET,POST,PUT,DELETE",
   credentials: true,
 }));
