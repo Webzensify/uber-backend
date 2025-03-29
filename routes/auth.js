@@ -8,7 +8,7 @@ const OperationalAdmin = require('../models/OperationalAdmin');
 const jwt = require('jsonwebtoken');
 const { sendVerificationCode } = require('../services/sms');
 const authenticateUser = require('../middlewares/authenticatedUser');
-
+const logger = require('../logger');
 
 // In-memory OTP store (use Redis or a DB in production)
 const otpStore = new Map(); // Key: mobileNumber, Value: { code, expiresAt }
@@ -135,10 +135,9 @@ router.post('/send-otp', async (req, res) => {
 
 
 router.post('/addDriver', authenticateUser, async (req, res) => {
-    let { mobileNumber, name, role, fcmToken, address, licenseNumber, aadhaarNumber, email } = req.body;
+    const { mobileNumber, name, role, fcmToken, address, licenseNumber, aadhaarNumber, email } = req.body;
     const { userID } = req
     try {
-        mobileNumber = "+91" + mobileNumber
         let entity = await Driver.findOne({ mobileNumber });
         if (entity) return res.status(400).json({ msg: `${role} already registered` });
 
