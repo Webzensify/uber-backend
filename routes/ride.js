@@ -10,8 +10,8 @@ const { Client } = require('@googlemaps/google-maps-services-js');
 const client = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY; // Ensure this is set in your environment variables
 
-// Utility function to calculate distance using Google Maps API
-async function calculateDistance(origin, destination) {
+// Utility function to calculate distance and duration using Google Maps API
+async function calculateDistanceAndDuration(origin, destination) {
     try {
         const response = await client.distancematrix({
             params: {
@@ -20,10 +20,12 @@ async function calculateDistance(origin, destination) {
                 key: GOOGLE_MAPS_API_KEY,
             },
         });
-        const distance = response.data.rows[0].elements[0].distance.value; // Distance in meters
-        return distance;
+        const element = response.data.rows[0].elements[0];
+        const distance = element.distance.value; // Distance in meters
+        const duration = element.duration.value; // Duration in seconds
+        return { distance, duration };
     } catch (err) {
-        throw new Error(`Error calculating distance: ${err.message}`);
+        throw new Error(`Error calculating distance and duration: ${err.message}`);
     }
 }
 
@@ -48,8 +50,8 @@ router.post('/add', authenticateUser, async (req, res) => {
             return res.status(400).json({msg});
         }
 
-        // Calculate distance between pickup and dropoff locations
-        const distance = await calculateDistance(pickupLocation, dropoffLocation);
+        // Calculate distance and duration between pickup and dropoff locations
+        const { distance, duration } = await calculateDistanceAndDuration(pickupLocation, dropoffLocation);
 
         const ride = new Ride({
             userId,
@@ -63,7 +65,8 @@ router.post('/add', authenticateUser, async (req, res) => {
                 latitude: dropoffLocation.latitude,
                 desc: dropoffLocation.desc
             },
-            distance, // Store distance in the ride document
+            distance, // Store distance in meters
+            duration, // Store duration in seconds
         });
         await ride.save();
 
@@ -76,9 +79,21 @@ router.post('/add', authenticateUser, async (req, res) => {
                 `Pickup: ${pickupLocation.desc}, Dropoff: ${dropoffLocation.desc}`
             );
         }
+
+        // Set a timeout to cancel the ride if not accepted within 5 minutes
+        setTimeout(async () => {
+            const updatedRide = await Ride.findById(ride._id);
+            if (updatedRide && updatedRide.status === 'pending') {
+                updatedRide.status = 'cancelled';
+                updatedRide.cancelDetails = { by: 'system', reason: 'Not accepted within 5 minutes' };
+                await updatedRide.save();
+                logger.info(`Ride ID ${ride._id} automatically cancelled after 5 minutes`);
+            }
+        }, 5 * 60 * 1000); // 5 minutes in milliseconds
+
         const msg = `Ride added successfully with ID ${ride._id}, notifying available drivers`;
         logger.info(msg);
-        return res.json({msg, rideId: ride._id, distance});
+        return res.json({msg, rideId: ride._id, distance, duration});
     } catch (err) {
         const msg = 'Error adding ride';
         logger.error(`${msg}: ${err.message}`);
@@ -104,6 +119,10 @@ router.post('/quote', authenticateUser, async (req, res) => {
             logger.error(msg);
             return res.status(400).json({msg});
         }
+
+        // Calculate distance and duration between driver and pickup location
+        const { distance, duration } = await calculateDistanceAndDuration(currentLocation, pickupLocation);
+
         const driverQuote = {
             driver: driverId,
             price: fare,
@@ -111,7 +130,9 @@ router.post('/quote', authenticateUser, async (req, res) => {
                 longitude: currentLocation.longitude,
                 latitude: currentLocation.latitude,
                 desc: currentLocation.desc
-            }
+            },
+            distance, // Distance to pickup location
+            duration, // Duration to pickup location
         };
         
         ride.quote.push(driverQuote);
@@ -182,9 +203,9 @@ router.get('/pending', authenticateUser, async (req, res) => {
 
         const filteredRides = [];
         for (const ride of pendingRides) {
-            const distance = await calculateDistance(currentLocation, ride.pickupLocation);
+            const { distance, duration } = await calculateDistanceAndDuration(currentLocation, ride.pickupLocation);
             if (distance <= 2000) { // 2 km in meters
-                filteredRides.push(ride);
+                filteredRides.push({ ...ride.toObject(), distance, duration });
             }
         }
 
