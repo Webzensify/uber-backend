@@ -4,7 +4,6 @@ const Driver = require('../models/Driver');
 const Car = require('../models/Car');
 const logger = require('../logger')
 const authenticateUser = require('../middlewares/authenticatedUser')
-
 // Get Driver Profile
 router.get('/profile/:driverId', async (req, res) => {
   try {
@@ -66,11 +65,43 @@ router.put('/selectFleet/:driverId', authenticateUser, async (req, res) => {
             return res.status(404).json({ msg: 'Car not found or unauthorized' });
         }
 
+        // Check if any other driver for the same owner has already selected this car
+        const existingDriver = await Driver.findOne({ vehicleDetails: carId, owner: driver.owner });
+        if (existingDriver && existingDriver._id.toString() !== driverId) {
+            return res.status(400).json({ msg: 'This fleet is already assigned to another driver' });
+        }
+
         driver.vehicleDetails = car._id;
         await driver.save();
         return res.status(200).json({ msg: 'Fleet selected successfully', driver });
     } catch (err) {
         return res.status(500).json({ msg: 'Error selecting fleet', error: err.message });
+    }
+});
+
+// Get available cars in the fleet for selection
+router.get('/availableFleet/:ownerId', authenticateUser, async (req, res) => {
+    const { ownerId } = req.params;
+    try {
+        // Find cars that are not assigned to any driver
+        const availableCars = await Car.find({
+            owner: ownerId,
+            _id: { $nin: (await Driver.find({ owner: ownerId }).distinct('vehicleDetails')) }
+        });
+
+        if (!availableCars || availableCars.length === 0) {
+            const msg = 'No available cars in the fleet';
+            logger.info(msg);
+            return res.status(404).json({ msg });
+        }
+
+        const msg = 'Available cars fetched successfully';
+        logger.info(msg);
+        return res.status(200).json({ msg, availableCars });
+    } catch (err) {
+        const msg = 'Error fetching available cars';
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({ msg, error: err.message });
     }
 });
 
@@ -86,26 +117,6 @@ router.put('/toggleAvailability/:driverId', authenticateUser, async (req, res) =
         return res.status(200).json({ msg: 'Driver availability updated', driver });
     } catch (err) {
         return res.status(500).json({ msg: 'Error updating availability', error: err.message });
-    }
-});
-
-// Show all cars from owner's fleet to driver
-router.get('/ownerFleet/:ownerId', authenticateUser, async (req, res) => {
-    const { ownerId } = req.params;
-    try {
-        const cars = await Car.find({ owner: ownerId });
-        if (!cars || cars.length === 0) {
-            const msg = `No cars found for owner ID ${ownerId}`;
-            logger.error(msg);
-            return res.status(404).json({ msg });
-        }
-        const msg = `Cars from owner ID ${ownerId} fetched successfully`;
-        logger.info(msg);
-        return res.status(200).json({ msg, cars });
-    } catch (err) {
-        const msg = `Error fetching cars for owner ID ${ownerId}`;
-        logger.error(`${msg}: ${err.message}`);
-        return res.status(500).json({ msg, error: err.message });
     }
 });
 

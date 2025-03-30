@@ -57,7 +57,7 @@ router.put('/editCar/:carID', authenticateUser, async (req, res) => {
         if (!car) {
             return res.status(404).json({ msg: "Car not found" }); // Handle car not found
         }
-        if (car.owner !== req.userID) {
+        if (car.owner.toString() !== req.userID) {
             return res.status(403).json({ msg: "You are not authorized to edit this car" }); // Proper status code
         }
 
@@ -89,7 +89,7 @@ router.delete('/deleteCar/:id', authenticateUser, async (req, res) => {
         if (!car) {
             return res.status(404).json({ msg: "Car not found" });
         }
-        if (car.owner !== userID) {
+        if (car.owner.toString() !== userID) {
             return res.status(403).json({ msg: "You are not authorized to delete this car" });
         }
         await Car.findByIdAndDelete(id);
