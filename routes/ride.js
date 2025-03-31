@@ -87,15 +87,15 @@ router.post('/add', authenticateUser, async (req, res) => {
         }
 
         // Set a timeout to cancel the ride if not accepted within 5 minutes
-        setTimeout(async () => {
-            const updatedRide = await Ride.findById(ride._id);
-            if (updatedRide && updatedRide.status === 'pending') {
-                updatedRide.status = 'cancelled';
-                updatedRide.cancelDetails = { by: 'system', reason: 'Not accepted within 5 minutes' };
-                await updatedRide.save();
-                logger.info(`Ride ID ${ride._id} automatically cancelled after 5 minutes`);
-            }
-        }, 5 * 60 * 1000); // 5 minutes in milliseconds
+        // setTimeout(async () => {
+        //     const updatedRide = await Ride.findById(ride._id);
+        //     if (updatedRide && updatedRide.status === 'pending') {
+        //         updatedRide.status = 'cancelled';
+        //         updatedRide.cancelDetails = { by: 'system', reason: 'Not accepted within 5 minutes' };
+        //         await updatedRide.save();
+        //         logger.info(`Ride ID ${ride._id} automatically cancelled after 5 minutes`);
+        //     }
+        // }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
         const msg = `Ride added successfully with ID ${ride._id}, notifying available drivers`;
         logger.info(msg);
@@ -109,22 +109,25 @@ router.post('/add', authenticateUser, async (req, res) => {
 
 // Driver adds a quote to the Ride
 router.post('/quote', authenticateUser, async (req, res) => {
-    const {rideId, fare, currentLocation, pickupLocation} = req.body;
-    const driverId =  req.userID
+    const { rideId, fare, currentLocation } = req.body; // Removed pickupLocation from request body
+    const driverId = req.userID;
     try {
         logger.info(`Driver ID ${driverId} adding quote for ride ID ${rideId}`);
         const ride = await Ride.findById(rideId);
         if (!ride || ride.status !== 'pending') {
             const msg = `Invalid ride ID ${rideId} or ride not in pending status`;
             logger.error(msg);
-            return res.status(400).json({msg});
+            return res.status(400).json({ msg });
         }
         const driver = await Driver.findById(driverId);
         if (!driver) {
             const msg = `Driver with ID ${driverId} not verified`;
             logger.error(msg);
-            return res.status(400).json({msg});
+            return res.status(400).json({ msg });
         }
+
+        // Use pickupLocation from the ride document
+        const pickupLocation = ride.pickupLocation;
 
         // Calculate distance and duration between driver and pickup location
         const { distance, duration } = await calculateDistanceAndDuration(currentLocation, pickupLocation);
@@ -140,10 +143,9 @@ router.post('/quote', authenticateUser, async (req, res) => {
             distance, // Distance to pickup location
             duration, // Duration to pickup location
         };
-        
+
         ride.quote.push(driverQuote);
         await ride.save();
-        
 
         const user = await User.findById(ride.userId);
         await sendNotification(
@@ -153,13 +155,14 @@ router.post('/quote', authenticateUser, async (req, res) => {
         );
         const msg = `Quote added successfully by driver ID ${driverId} for ride ID ${rideId}`;
         logger.info(msg);
-        return res.json({msg, rideId: ride._id});
+        return res.json({ msg, rideId: ride._id });
     } catch (err) {
         const msg = `Error adding quote for ride ID ${rideId}`;
         logger.error(`${msg}: ${err.message}`);
-        return res.status(500).json({msg, error: err.message});
+        return res.status(500).json({ msg, error: err.message });
     }
 });
+
 
 router.post('/book', authenticateUser, async (req, res) => {
     const {fare, driverId, rideId} = req.body;
@@ -210,7 +213,7 @@ router.post('/pending', authenticateUser, async (req, res) => {
         const filteredRides = [];
         for (const ride of pendingRides) {
             const { distance, duration } = await calculateDistanceAndDuration(currentLocation, ride.pickupLocation);
-            if (distance <= 2000) { // 2 km in meters
+            if (distance <= 10000) { // 2 km in meters
                 filteredRides.push({ ...ride.toObject(), distance, duration });
             }
         }
@@ -255,7 +258,8 @@ router.get('/:rideId', authenticateUser, async (req, res) => {
             .populate('userId', 'name mobileNumber') // Populate user details
             .populate({
                 path: 'driverId',
-                select: 'owner mobileNumber isVerified name licenseNumber aadhaarNumber vehicleDetails isAvailable email'
+                select: 'owner mobileNumber isVerified name licenseNumber aadhaarNumber vehicleDetails isAvailable email _id',
+
             }); // Populate full driver details
         if (!ride) {
             const msg = `Ride with ID ${rideId} not found`;
