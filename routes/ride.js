@@ -221,7 +221,7 @@ router.post("/pending", authenticateUser, async (req, res) => {
         currentLocation,
         ride.pickupLocation
       );
-      if (distance <= 10000000) {
+      if (distance <= 100000000) {
         filteredRides.push({ ...ride.toObject(), distance, duration });
       }
     }
