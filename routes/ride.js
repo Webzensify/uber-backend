@@ -238,7 +238,7 @@ router.get('/quotes/:rideId', authenticateUser, async (req, res) => {
         }
         const msg = `Quotes retrieved successfully for ride ID ${rideId}`;
         logger.info(msg);
-        return res.json({msg, quotes: ride.quote});
+        return res.json({msg, quotes: ride.quote,status: ride.status});
     } catch (err) {
         const msg = `Error retrieving quotes for ride ID ${rideId}`;
         logger.error(`${msg}: ${err.message}`);
