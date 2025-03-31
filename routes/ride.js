@@ -20,9 +20,15 @@ async function calculateDistanceAndDuration(origin, destination) {
                 key: GOOGLE_MAPS_API_KEY,
             },
         });
+        console.log(response.data);
+        console.log(response.data.rows);
+        console.log(response.data.rows[0].elements);
+        console.log(response.data.rows[0].elements[0]);
         const element = response.data.rows[0].elements[0];
         const distance = element.distance.value; // Distance in meters
         const duration = element.duration.value; // Duration in seconds
+
+        console.log(`Distance: ${distance} meters, Duration: ${duration} seconds`);
         return { distance, duration };
     } catch (err) {
         throw new Error(`Error calculating distance and duration: ${err.message}`);
@@ -185,7 +191,7 @@ router.post('/book', authenticateUser, async (req, res) => {
 });
 
 // Get All Pending Rides
-router.get('/pending', authenticateUser, async (req, res) => {
+router.post('/pending', authenticateUser, async (req, res) => {
     const driverId = req.userID;
     const {currentLocation} = req.body
     try {
