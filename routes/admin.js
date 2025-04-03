@@ -93,22 +93,32 @@ router.post('/appointOperationalAdmin', authenticateUser, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ msg: 'Unauthorized' });
     }
+
     const { name, email, mobileNumber } = req.body;
+
     try {
-        const existingAdmin = await OperationalAdmin.findOne({ mobileNumber });
+        // Check if an Operational Admin already exists with the same mobile number or email
+        const existingAdmin = await OperationalAdmin.findOne({
+            $or: [{ mobileNumber }, { email }],
+        });
+
         if (existingAdmin) {
             return res.status(400).json({ msg: 'Operational Admin already exists' });
         }
-        if (email) {
-            const operationalAdmin = new OperationalAdmin({ name, email, mobileNumber });
-            await operationalAdmin.save();
-        }
-        const operationalAdmin = new OperationalAdmin({ name, mobileNumber ,email});
+
+        // Create and save the new Operational Admin
+        const operationalAdmin = new OperationalAdmin({ name, email, mobileNumber });
         await operationalAdmin.save();
 
-        return res.status(201).json({ msg: 'Operational Admin appointed successfully', operationalAdmin });
+        return res.status(201).json({
+            msg: 'Operational Admin appointed successfully',
+            operationalAdmin,
+        });
     } catch (err) {
-        return res.status(500).json({ msg: 'Error appointing Operational Admin', error: err.message });
+        return res.status(500).json({
+            msg: 'Error appointing Operational Admin',
+            error: err.message,
+        });
     }
 });
 
