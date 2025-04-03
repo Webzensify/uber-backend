@@ -141,4 +141,33 @@ router.put('/toggleAvailability/:driverId', authenticateUser, async (req, res) =
     }
 });
 
+router.get('/getVehicle/:id', async (req, res) => {
+  try {
+      const { id } = req.params;
+      logger.info(`Fetching vehicle details for driver ID ${id}`);
+
+      // Find the driver by ID and populate the vehicle details
+      const driver = await Driver.findById(id).populate('vehicleDetails');
+      if (!driver) {
+          const msg = `Driver with ID ${id} not found`;
+          logger.error(msg);
+          return res.status(404).json({ msg });
+      }
+
+      if (!driver.vehicleDetails) {
+          const msg = `No vehicle assigned to driver with ID ${id}`;
+          logger.info(msg);
+          return res.status(404).json({ msg });
+      }
+
+      const msg = `Vehicle details retrieved successfully for driver ID ${id}`;
+      logger.info(msg);
+      return res.status(200).json({ msg, vehicle: driver.vehicleDetails });
+  } catch (err) {
+      const msg = `Error fetching vehicle details for driver ID ${id}`;
+      logger.error(`${msg}: ${err.message}`);
+      return res.status(500).json({ msg, error: err.message });
+  }
+});
+
 module.exports = router;
