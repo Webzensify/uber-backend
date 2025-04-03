@@ -7,6 +7,7 @@ const carSchema = mongoose.Schema({
     number: {type: String, unique: true, required: true},
     desc: {type: String, required: true},
     year: {type: String, required: true},
+    acStatus: {type: String, required: true, enum:['on', 'off']},
     status: { type: String, enum: ['available', 'engaged'], default: 'available' },
     owner: {
         type: mongoose.Schema.Types.ObjectId,

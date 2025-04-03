@@ -10,15 +10,15 @@ const authenticateUser = require('../middlewares/authenticatedUser')
 
 
 router.post('/addCar', authenticateUser, async (req, res) => {
-    const { model, brand, type, seats, number, year, desc } = req.body
+    const { model, brand, type, seats, number, year, desc, acStatus } = req.body
     let msg
     try {
         const owner = req.userID
-        if (!model || !brand || !type || !seats || !number || !year || !desc) {
+        if (!model || !brand || !type || !seats || !number || !year || !desc || !acStatus) {
             return res.status(500).json({ msg: "model, brand, type, year, desc, number and seats required to add car" })
         }
         const car = new Car({
-            model, brand, type, seats, number, owner, year, desc
+            model, brand, type, seats, number, owner, year, desc, acStatus
         })
         await car.save()
         msg = `Car ${car} added to fleet of owner ${owner}`
@@ -85,6 +85,28 @@ router.put('/editCar/:carID', authenticateUser, async (req, res) => {
     }
 });
 
+// Update Car's AC Status (Owner only)
+router.put('/updateAcStatus/:carID', authenticateUser, async (req, res) => {
+    const { carID } = req.params;
+    const { acStatus } = req.body; // Expected to be 'on' or 'off'
+    try {
+        const car = await Car.findById(carID);
+        if (!car) {
+            return res.status(404).json({ msg: "Car not found" });
+        }
+        if (car.owner.toString() !== req.userID) {
+            return res.status(403).json({ msg: "You are not authorized to update this car" });
+        }
+        if (!['on', 'off'].includes(acStatus)) {
+            return res.status(400).json({ msg: "Invalid acStatus value. Must be 'on' or 'off'" });
+        }
+        car.acStatus = acStatus;
+        await car.save();
+        return res.status(200).json({ msg: "Car acStatus updated successfully", car });
+    } catch (err) {
+        return res.status(500).json({ msg: "Error updating acStatus", error: err.message });
+    }
+});
 
 router.delete('/deleteCar/:id', authenticateUser, async (req, res) => {
     const { id } = req.params;
@@ -234,6 +256,41 @@ router.delete('/deleteDriver/:driverId', authenticateUser, async (req, res) => {
         return res.status(200).json({ msg: 'Driver deleted successfully' });
     } catch (err) {
         return res.status(500).json({ msg: 'Error deleting driver', error: err.message });
+    }
+});
+
+// Get Owner Profile
+router.get('/profile', authenticateUser, async (req, res) => {
+    try {
+        const owner = await Owner.findById(req.userID).select('-__v');
+        if (!owner) {
+            return res.status(404).json({ msg: "Owner not found" });
+        }
+        return res.status(200).json({ msg: "Owner profile fetched successfully", owner });
+    } catch (err) {
+        return res.status(500).json({ msg: "Error fetching owner profile", error: err.message });
+    }
+});
+
+// Edit Owner Profile
+router.put('/profile', authenticateUser, async (req, res) => {
+    const { name, address, fcmToken, mobileNumber, aadhaarNumber, email } = req.body;
+    try {
+        const owner = await Owner.findById(req.userID);
+        if (!owner) {
+            return res.status(404).json({ msg: "Owner not found" });
+        }
+        // Update only provided fields
+        if (name) owner.name = name;
+        if (address) owner.address = address;
+        if (fcmToken) owner.fcmToken = fcmToken;
+        if (mobileNumber) owner.mobileNumber = mobileNumber;
+        if (aadhaarNumber) owner.aadhaarNumber = aadhaarNumber;
+        if (email) owner.email = email;
+        await owner.save();
+        return res.status(200).json({ msg: "Owner profile updated successfully", owner });
+    } catch (err) {
+        return res.status(500).json({ msg: "Error updating owner profile", error: err.message });
     }
 });
 
