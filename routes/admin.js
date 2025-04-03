@@ -10,7 +10,7 @@ const authenticateUser = require('../middlewares/authenticatedUser');
 
 // Global variable to hold driver discovery radius (in meters)
 // Initially set from environment variable (default 2000m)
-let driverDiscoveryRadius = process.env.DRIVER_DISCOVERY_RADIUS ? Number(process.env.DRIVER_DISCOVERY_RADIUS) : 2000;
+let driverDiscoveryRadius = process.env.DRIVER_DISCOVERY_RADIUS ? Number(process.env.DRIVER_DISCOVERY_RADIUS) : 100000000;
 
 // Get all rides (Admin and Operational Admin)
 router.get('/allRides', authenticateUser, async (req, res) => {

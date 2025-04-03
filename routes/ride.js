@@ -202,7 +202,7 @@ router.get('/pending', authenticateUser, async (req, res) => {
             .select('-__v');
 
         // Configurable discovery radius (in meters) set by admin; default is 2000m
-        const discoveryRadius = process.env.DRIVER_DISCOVERY_RADIUS ? Number(process.env.DRIVER_DISCOVERY_RADIUS) : 2000;
+        const discoveryRadius = process.env.DRIVER_DISCOVERY_RADIUS ? Number(process.env.DRIVER_DISCOVERY_RADIUS) : 100000000;
 
         const filteredRides = [];
         for (const ride of pendingRides) {
