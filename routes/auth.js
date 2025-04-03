@@ -153,7 +153,6 @@ router.post('/addDriver', authenticateUser, async (req, res) => {
         if (!role) return res.status(404).json({msg: 'role not found'})
         if (!address) return res.status(404).json({msg: 'address not found'})
         if (!aadhaarNumber) return res.status(404).json({msg: 'aadhaarNumber not found'})
-        if (!email) return res.status(404).json({msg: 'email not found'})
             
 
         entity = new Driver({
