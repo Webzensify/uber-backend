@@ -19,13 +19,13 @@ const generateAndStoreOtp = (mobileNumber) => {
     const code = 210000
     // const expiresAt = Date.now() + 5 * 60 * 1000; // Expires in 5 minutes
     otpStore.set(mobileNumber, { code });
-    console.log(`set otps: ${otpStore.get(mobileNumber).code}`)
+    console.log(`set otps: ${otpStore}`)
     return code;
 };
 
 // Verify OTP
 const verifyOtp = (mobileNumber, code) => {
-    console.log(`otps: ${otpStore.get(mobileNumber).code}`)
+    console.log(`otps: ${otpStore}`)
     const storedOtp = otpStore.get(mobileNumber);
     console.log(storedOtp.code, code)
     console.log(parseInt(storedOtp.code) === parseInt(code))

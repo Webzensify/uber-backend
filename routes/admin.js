@@ -8,6 +8,10 @@ const OperationalAdmin = require('../models/OperationalAdmin');
 const Ride = require('../models/Ride');
 const authenticateUser = require('../middlewares/authenticatedUser');
 
+// Global variable to hold driver discovery radius (in meters)
+// Initially set from environment variable (default 2000m)
+let driverDiscoveryRadius = process.env.DRIVER_DISCOVERY_RADIUS ? Number(process.env.DRIVER_DISCOVERY_RADIUS) : 2000;
+
 // Get all rides (Admin and Operational Admin)
 router.get('/allRides', authenticateUser, async (req, res) => {
     try {
@@ -91,12 +95,17 @@ router.post('/appointOperationalAdmin', authenticateUser, async (req, res) => {
     }
     const { name, email, mobileNumber } = req.body;
     try {
-        const existingAdmin = await OperationalAdmin.findOne({ email });
+        const existingAdmin = await OperationalAdmin.findOne({ mobileNumber });
         if (existingAdmin) {
             return res.status(400).json({ msg: 'Operational Admin already exists' });
         }
-        const operationalAdmin = new OperationalAdmin({ name, email, mobileNumber });
+        if (email) {
+            const operationalAdmin = new OperationalAdmin({ name, email, mobileNumber });
+            await operationalAdmin.save();
+        }
+        const operationalAdmin = new OperationalAdmin({ name, mobileNumber });
         await operationalAdmin.save();
+
         return res.status(201).json({ msg: 'Operational Admin appointed successfully', operationalAdmin });
     } catch (err) {
         return res.status(500).json({ msg: 'Error appointing Operational Admin', error: err.message });
@@ -163,6 +172,48 @@ router.get('/ride/:rideId', authenticateUser, async (req, res) => {
         return res.status(200).json({ msg: 'Ride details fetched successfully', ride });
     } catch (err) {
         return res.status(500).json({ msg: 'Error fetching ride details', error: err.message });
+    }
+});
+
+// Endpoint to get the current driver discovery radius (Admin/Operational Admin)
+router.get('/discoveryRadius', authenticateUser, async (req, res) => {
+    if (!['admin', 'operational admin'].includes(req.user.role)) {
+        return res.status(403).json({ msg: 'Unauthorized' });
+    }
+    return res.status(200).json({ driverDiscoveryRadius });
+});
+
+// Endpoint to update the driver discovery radius (Admin only)
+router.put('/discoveryRadius', authenticateUser, async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ msg: 'Only admin can update discovery radius' });
+    }
+    const { radius } = req.body;
+    if (!radius || isNaN(radius) || Number(radius) <= 0) {
+        return res.status(400).json({ msg: 'Invalid radius value' });
+    }
+    driverDiscoveryRadius = Number(radius);
+    return res.status(200).json({ msg: 'Discovery radius updated successfully', driverDiscoveryRadius });
+});
+
+// Endpoint to cancel a ride (Admin and Operational Admin)
+router.put('/cancelRide/:rideId', authenticateUser, async (req, res) => {
+    if (!['admin', 'operational admin'].includes(req.user.role)) {
+        return res.status(403).json({ msg: 'Unauthorized' });
+    }
+    const { rideId } = req.params;
+    const { reason } = req.body;
+    try {
+        const ride = await Ride.findById(rideId);
+        if (!ride) {
+            return res.status(404).json({ msg: 'Ride not found' });
+        }
+        ride.status = 'cancelled';
+        ride.cancelDetails = { by: req.user.role, reason: reason || 'Cancelled by admin' };
+        await ride.save();
+        return res.status(200).json({ msg: `Ride ${rideId} cancelled successfully`, ride });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error cancelling ride', error: err.message });
     }
 });
 

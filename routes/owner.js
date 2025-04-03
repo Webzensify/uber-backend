@@ -32,19 +32,24 @@ router.post('/addCar', authenticateUser, async (req, res) => {
 })
 
 router.get('/getCars', authenticateUser, async (req, res) => {
-    let msg
-    let userID = req.userID
+    let msg;
+    const userID = req.userID;
     try {
-        const cars = await Car.find({ owner: userID })
-        console.log(`cars ${cars}`)
-
-        msg = "all cars fetched"
-        return res.status(200).json({ msg, cars })
-    }
-    catch (err) {
-        console.log(err)
-        msg = "Error fetching cars"
-        return res.status(500).json({ msg, err })
+        const cars = await Car.find({ owner: userID });
+        // Find drivers engaged with a car under this owner
+        const engagedDrivers = await Driver.find({ owner: userID, vehicleDetails: { $ne: null } })
+            .select('name mobileNumber email licenseNumber aadhaarNumber vehicleDetails');
+        // Attach driver details to the corresponding car as "engagement"
+        const carsWithEngagement = cars.map(car => {
+            const driver = engagedDrivers.find(d => d.vehicleDetails.toString() === car._id.toString());
+            return { ...car.toObject(), engagement: driver || null };
+        });
+        msg = "all cars fetched";
+        return res.status(200).json({ msg, cars: carsWithEngagement });
+    } catch (err) {
+        console.log(err);
+        msg = "Error fetching cars";
+        return res.status(500).json({ msg, err });
     }
 })
 
@@ -176,6 +181,44 @@ router.put('/blockDriver/:driverId', authenticateUser, async (req, res) => {
         return res.status(200).json({ msg: 'Driver blocked successfully', driver });
     } catch (err) {
         return res.status(500).json({ msg: 'Error blocking driver', error: err.message });
+    }
+});
+
+// Unblock Driver API for Owner
+router.put('/unblockDriver/:driverId', authenticateUser, async (req, res) => {
+    const { driverId } = req.params;
+    try {
+        const driver = await Driver.findById(driverId);
+        if (!driver || driver.owner.toString() !== req.userID) {
+            return res.status(404).json({ msg: 'Driver not found or unauthorized' });
+        }
+        driver.status = 'active';
+        await driver.save();
+        return res.status(200).json({ msg: 'Driver unblocked successfully', driver });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error unblocking driver', error: err.message });
+    }
+});
+
+// Edit Driver API for Owner
+router.put('/editDriver/:driverId', authenticateUser, async (req, res) => {
+    const { driverId } = req.params;
+    // Allow editing: name, licenseNumber, aadhaarNumber, email, fcmToken
+    const { name, licenseNumber, aadhaarNumber, email, fcmToken } = req.body;
+    try {
+        const driver = await Driver.findById(driverId);
+        if (!driver || driver.owner.toString() !== req.userID) {
+            return res.status(404).json({ msg: 'Driver not found or unauthorized' });
+        }
+        if (name) driver.name = name;
+        if (licenseNumber) driver.licenseNumber = licenseNumber;
+        if (aadhaarNumber) driver.aadhaarNumber = aadhaarNumber;
+        if (email) driver.email = email;
+        if (fcmToken) driver.fcmToken = fcmToken;
+        await driver.save();
+        return res.status(200).json({ msg: 'Driver profile updated successfully', driver });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error updating driver profile', error: err.message });
     }
 });
 

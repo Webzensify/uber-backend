@@ -85,6 +85,11 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'rideId and coordinates required' });
       return;
     }
+    const ride = await Ride.findById(rideId)
+    if (ride.status === 'cancelled'){
+      socket.emit('cancelRide')
+    }
+    
     const driver = await Driver.findById(driverId);
     if (driver) {
       driver.currentLocation = currentLocation;

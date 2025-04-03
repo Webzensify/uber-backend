@@ -16,12 +16,16 @@ const driverSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Car'
   },
+  address: {
+    type: String,
+    required: true
+  },
   currentLocation: {
     coordinates: {type: String},
     desc: {type: String}
   },
   isAvailable: { type: Boolean, default: true },
-  email: {type: String, required: true}
+  email: {type: String}
 });
 
 module.exports = mongoose.model('Driver', driverSchema);

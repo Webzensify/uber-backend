@@ -65,14 +65,23 @@ router.put('/selectFleet/:driverId', authenticateUser, async (req, res) => {
             return res.status(404).json({ msg: 'Car not found or unauthorized' });
         }
 
-        // Check if any other driver for the same owner has already selected this car
+        // Check if any other driver for the same driver already selected this car
         const existingDriver = await Driver.findOne({ vehicleDetails: carId, owner: driver.owner });
         if (existingDriver && existingDriver._id.toString() !== driverId) {
             return res.status(400).json({ msg: 'This fleet is already assigned to another driver' });
         }
 
+        // Free the previously engaged car, if any
+        if (driver.vehicleDetails && driver.vehicleDetails.toString() !== carId) {
+            await Car.findByIdAndUpdate(driver.vehicleDetails, { status: 'available' });
+        }
+
+        // Assign the new car and mark it as engaged
         driver.vehicleDetails = car._id;
         await driver.save();
+        car.status = 'engaged';
+        await car.save();
+
         return res.status(200).json({ msg: 'Fleet selected successfully', driver });
     } catch (err) {
         return res.status(500).json({ msg: 'Error selecting fleet', error: err.message });
@@ -83,18 +92,19 @@ router.put('/selectFleet/:driverId', authenticateUser, async (req, res) => {
 router.get('/availableFleet/:ownerId', authenticateUser, async (req, res) => {
     const { ownerId } = req.params;
     try {
-        // Find cars that are not assigned to any driver
+        // Find engaged car IDs for this owner
+        const engagedCarIds = await Driver.find({ owner: ownerId }).distinct('vehicleDetails');
+        // Find cars that are available (status 'available') and not engaged
         const availableCars = await Car.find({
             owner: ownerId,
-            _id: { $nin: (await Driver.find({ owner: ownerId }).distinct('vehicleDetails')) }
+            status: 'available',
+            _id: { $nin: engagedCarIds }
         });
-
         if (!availableCars || availableCars.length === 0) {
             const msg = 'No available cars in the fleet';
             logger.info(msg);
             return res.status(404).json({ msg });
         }
-
         const msg = 'Available cars fetched successfully';
         logger.info(msg);
         return res.status(200).json({ msg, availableCars });
@@ -111,8 +121,19 @@ router.put('/toggleAvailability/:driverId', authenticateUser, async (req, res) =
     try {
         const driver = await Driver.findById(driverId);
         if (!driver) return res.status(404).json({ msg: 'Driver not found' });
-
-        driver.isAvailable = !driver.isAvailable;
+        
+        // Toggle availability
+        const newAvailability = !driver.isAvailable;
+        driver.isAvailable = newAvailability;
+        
+        // If driver turns off availability, unassign the car
+        if (!newAvailability && driver.vehicleDetails) {
+            // Free the car: update its status to "available"
+            await Car.findByIdAndUpdate(driver.vehicleDetails, { status: 'available' });
+            // Remove the car from driver's assignment
+            driver.vehicleDetails = null;
+        }
+        
         await driver.save();
         return res.status(200).json({ msg: 'Driver availability updated', driver });
     } catch (err) {

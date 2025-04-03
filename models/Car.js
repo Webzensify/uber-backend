@@ -7,9 +7,10 @@ const carSchema = mongoose.Schema({
     number: {type: String, unique: true, required: true},
     desc: {type: String, required: true},
     year: {type: String, required: true},
+    status: { type: String, enum: ['available', 'engaged'], default: 'available' },
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "owner"
-     }
+    } 
 })
 module.exports = mongoose.model('Car', carSchema);
