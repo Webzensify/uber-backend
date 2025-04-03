@@ -54,7 +54,12 @@ router.post('/register', async (req, res) => {
             logger.error(msg);
             return res.status(400).json({ msg });
         }
-
+        if (!role) return `role not found`
+        if (!mobileNumber) return `mobileNumber not found`
+        if (!name) return `name not found`
+        if (!email) return `email not found`
+        if (!aadhaarNumber) return 'aadhaarNumber not found'
+        if (!address) return 'address not found'
         const existingEntity = await Model.findOne({ mobileNumber });
         if (existingEntity) {
             const msg = `${role} with mobile number ${mobileNumber} already registered`;
@@ -100,7 +105,9 @@ router.post('/login', async (req, res) => {
 
         const entity = await Model.findOne({ mobileNumber });
         if (!entity) return res.status(404).json({ msg: `${role} not found` });
-
+        
+        if (!mobileNumber) return res.status(404).json({msg: `mobileNumber not found`})
+        if (!role) return res.status(404).json({msg: 'role not found'})
         // Validate OTP
         console.log("checking otp")
         if (!verifyOtp(mobileNumber, otp)) {
@@ -141,9 +148,14 @@ router.post('/addDriver', authenticateUser, async (req, res) => {
         let entity = await Driver.findOne({ mobileNumber });
         if (entity) return res.status(400).json({ msg: `${role} already registered` });
 
-        if (!licenseNumber || !aadhaarNumber) {
-            return res.status(400).json({ msg: 'License number and aadhaar number are required for driver' });
-        }
+        if (!licenseNumber) return res.status(400).json({ msg: 'License number is required for driver' });
+        if (!name) return res.status(404).json({msg: `name not found`})
+        if (!role) return res.status(404).json({msg: 'role not found'})
+        if (!fcmToken) return res.status(404).json({msg: 'fcmToken not found'})
+        if (!address) return res.status(404).json({msg: 'address not found'})
+        if (!aadhaarNumber) return res.status(404).json({msg: 'aadhaarNumber not found'})
+        if (!email) return res.status(404).json({msg: 'email not found'})
+            
 
         entity = new Driver({
             mobileNumber,

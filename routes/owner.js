@@ -294,26 +294,6 @@ router.put('/profile', authenticateUser, async (req, res) => {
     }
 });
 
-// router.get('/allCurrentRides', authenticateUser, async (req, res) => {
-//     const { userID } = req
-//     let msg;
-//     let rides = []
-//     try {
-//         const drivers = await Driver.find({ owner: userID })
-//         console.log(`drivers ${drivers}`)
-//         for (driver in drivers) {
-//             console.log(`driver name: ${driver.name}`)
-//             const id = driver.id
-//             const driverRide = await Ride.findOne({ driver: id })
-//             rides.push(driverRide)
-//         }
-//         msg = "all current rides fetched"
-//         return res.status(200).json({ msg, rides })
-//     }
-//     catch (err) {
-//         return res.status(500).json({ msg })
-//     }
-// })
 
 // Delete owner account
 router.delete('/deleteAccount', authenticateUser, async (req, res) => {
