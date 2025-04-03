@@ -103,7 +103,7 @@ router.post('/appointOperationalAdmin', authenticateUser, async (req, res) => {
             const operationalAdmin = new OperationalAdmin({ name, email, mobileNumber });
             await operationalAdmin.save();
         }
-        const operationalAdmin = new OperationalAdmin({ name, mobileNumber });
+        const operationalAdmin = new OperationalAdmin({ name, mobileNumber ,email});
         await operationalAdmin.save();
 
         return res.status(201).json({ msg: 'Operational Admin appointed successfully', operationalAdmin });
@@ -201,6 +201,7 @@ router.put('/cancelRide/:rideId', authenticateUser, async (req, res) => {
     if (!['admin', 'operational admin'].includes(req.user.role)) {
         return res.status(403).json({ msg: 'Unauthorized' });
     }
+    console.log("hello");
     const { rideId } = req.params;
     const { reason } = req.body;
     try {

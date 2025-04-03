@@ -24,7 +24,7 @@ const driverSchema = new mongoose.Schema({
     coordinates: {type: String},
     desc: {type: String}
   },
-  isAvailable: { type: Boolean, default: true },
+  isAvailable: { type: Boolean, default: false },
   email: {type: String}
 });
 

@@ -27,7 +27,7 @@ const rideSchema = new mongoose.Schema({
   }],
   status: { type: String, enum: ['pending', 'accepted', 'completed', 'cancelled'], default: 'pending' },
   cancelDetails: {
-    by: {type: String, enum: ['user', 'driver','system']},
+    by: {type: String, enum: ['user', 'driver','system','admin', 'operational admin']},
     reason: {type: String}
   },
   otp: {type: Number},
