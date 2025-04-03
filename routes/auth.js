@@ -151,7 +151,6 @@ router.post('/addDriver', authenticateUser, async (req, res) => {
         if (!licenseNumber) return res.status(400).json({ msg: 'License number is required for driver' });
         if (!name) return res.status(404).json({msg: `name not found`})
         if (!role) return res.status(404).json({msg: 'role not found'})
-        if (!fcmToken) return res.status(404).json({msg: 'fcmToken not found'})
         if (!address) return res.status(404).json({msg: 'address not found'})
         if (!aadhaarNumber) return res.status(404).json({msg: 'aadhaarNumber not found'})
         if (!email) return res.status(404).json({msg: 'email not found'})
