@@ -55,7 +55,7 @@ router.get('/getCars', authenticateUser, async (req, res) => {
 
 router.put('/editCar/:carID', authenticateUser, async (req, res) => {
     const { carID } = req.params;
-    const { model, brand, type, seats, number, desc, year } = req.body; // Include all fields
+    const { model, brand, type, seats, number, desc, year,status,acStatus } = req.body; // Include all fields
     let msg;
     try {
         const car = await Car.findById(carID); // Correct method name
@@ -73,7 +73,9 @@ router.put('/editCar/:carID', authenticateUser, async (req, res) => {
         car.seats = seats || car.seats;
         car.number = number || car.number;
         car.desc = desc || car.desc; // Include description
-        car.year = year || car.year; // Include year
+        car.year = year || car.year;
+        car.status = status || car.status; 
+        car.acStatus = acStatus || car.acStatus;
 
         await car.save();
         msg = `Car ${carID} updated successfully`;
@@ -235,7 +237,7 @@ router.put('/editDriver/:driverId', authenticateUser, async (req, res) => {
         if (name) driver.name = name;
         if (licenseNumber) driver.licenseNumber = licenseNumber;
         if (aadhaarNumber) driver.aadhaarNumber = aadhaarNumber;
-        if (email) driver.email = email;
+        driver.email = email;
         if (fcmToken) driver.fcmToken = fcmToken;
         await driver.save();
         return res.status(200).json({ msg: 'Driver profile updated successfully', driver });

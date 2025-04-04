@@ -25,7 +25,7 @@ const rideSchema = new mongoose.Schema({
     duration: {type: String},
     distance: {type: String},
   }],
-  status: { type: String, enum: ['pending', 'accepted', 'completed', 'cancelled'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'accepted','started', 'completed', 'cancelled'], default: 'pending' },
   cancelDetails: {
     by: {type: String, enum: ['user', 'driver','system','admin', 'operational admin']},
     reason: {type: String}

@@ -72,7 +72,7 @@ router.post('/verify', authenticateUser, async (req, res) => {
         }
 
         ride.paymentStatus = 'paid';
-        ride.status = 'completed';
+        ride.status = 'started';
         await ride.save();
         const msg = `Payment verified and ride ID ${rideId} marked as completed`;
         logger.info(msg);

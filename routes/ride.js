@@ -87,15 +87,15 @@ router.post('/add', authenticateUser, async (req, res) => {
         }
 
         // Set a timeout to cancel the ride if not accepted within 5 minutes
-        setTimeout(async () => {
-            const updatedRide = await Ride.findById(ride._id);
-            if (updatedRide && updatedRide.status === 'pending') {
-                updatedRide.status = 'cancelled';
-                updatedRide.cancelDetails = { by: 'system', reason: 'Not accepted within 5 minutes' };
-                await updatedRide.save();
-                logger.info(`Ride ID ${ride._id} automatically cancelled after 5 minutes`);
-            }
-        }, 5 * 60 * 1000); // 5 minutes in milliseconds
+        // setTimeout(async () => {
+        //     const updatedRide = await Ride.findById(ride._id);
+        //     if (updatedRide && updatedRide.status === 'pending') {
+        //         updatedRide.status = 'cancelled';
+        //         updatedRide.cancelDetails = { by: 'system', reason: 'Not accepted within 5 minutes' };
+        //         await updatedRide.save();
+        //         logger.info(`Ride ID ${ride._id} automatically cancelled after 5 minutes`);
+        //     }
+        // }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
         const msg = `Ride added successfully with ID ${ride._id}, notifying available drivers`;
         logger.info(msg);

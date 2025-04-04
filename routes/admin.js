@@ -55,6 +55,22 @@ router.put('/blockDriver/:driverId', authenticateUser, async (req, res) => {
         return res.status(500).json({ msg: 'Error blocking driver', error: err.message });
     }
 });
+router.put('/unblockDriver/:driverId', authenticateUser, async (req, res) => {
+    const { driverId } = req.params;
+    try {
+        if (!['admin', 'operational admin'].includes(req.user.role)) {
+            return res.status(403).json({ msg: 'Unauthorized' });
+        }
+        const driver = await Driver.findById(driverId);
+        if (!driver) return res.status(404).json({ msg: 'Driver not found' });
+
+        driver.status = 'active';
+        await driver.save();
+        return res.status(200).json({ msg: 'Driver unblocked successfully', driver });
+    } catch (err) {
+        return res.status(500).json({ msg: 'Error unblocking driver', error: err.message });
+    }
+});
 
 // Delete a driver (Admin and Operational Admin)
 router.delete('/deleteDriver/:driverId', authenticateUser, async (req, res) => {
