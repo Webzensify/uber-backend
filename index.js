@@ -21,6 +21,15 @@ const cors = require('cors');
 const http = require('http');
 const server = http.createServer(app);
 
+// for production
+// // Serve static files from React build
+// app.use(express.static(path.join(__dirname, 'client/build')));
+
+// // Handle React routing, return all requests to React app
+// app.get('*', function(req, res) {
+//   res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+// });
+
 // Ensure the logs directory exists
 const logDirectory = "logs";
 if (!fs.existsSync(logDirectory)) {
