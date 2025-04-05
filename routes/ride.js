@@ -20,15 +20,9 @@ async function calculateDistanceAndDuration(origin, destination) {
                 key: GOOGLE_MAPS_API_KEY,
             },
         });
-        console.log(response.data);
-        console.log(response.data.rows);
-        console.log(response.data.rows[0].elements);
-        console.log(response.data.rows[0].elements[0]);
         const element = response.data.rows[0].elements[0];
         const distance = element.distance.value; // Distance in meters
         const duration = element.duration.value; // Duration in seconds
-
-        console.log(`Distance: ${distance} meters, Duration: ${duration} seconds`);
         return { distance, duration };
     } catch (err) {
         throw new Error(`Error calculating distance and duration: ${err.message}`);
@@ -87,15 +81,15 @@ router.post('/add', authenticateUser, async (req, res) => {
         }
 
         // Set a timeout to cancel the ride if not accepted within 5 minutes
-        // setTimeout(async () => {
-        //     const updatedRide = await Ride.findById(ride._id);
-        //     if (updatedRide && updatedRide.status === 'pending') {
-        //         updatedRide.status = 'cancelled';
-        //         updatedRide.cancelDetails = { by: 'system', reason: 'Not accepted within 5 minutes' };
-        //         await updatedRide.save();
-        //         logger.info(`Ride ID ${ride._id} automatically cancelled after 5 minutes`);
-        //     }
-        // }, 5 * 60 * 1000); // 5 minutes in milliseconds
+        setTimeout(async () => {
+            const updatedRide = await Ride.findById(ride._id);
+            if (updatedRide && updatedRide.status === 'pending') {
+                updatedRide.status = 'cancelled';
+                updatedRide.cancelDetails = { by: 'system', reason: 'Not accepted within 5 minutes' };
+                await updatedRide.save();
+                logger.info(`Ride ID ${ride._id} automatically cancelled after 5 minutes`);
+            }
+        }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
         const msg = `Ride added successfully with ID ${ride._id}, notifying available drivers`;
         logger.info(msg);
@@ -161,7 +155,7 @@ router.post('/quote', authenticateUser, async (req, res) => {
     }
 });
 
-router.post('/book', authenticateUser, async (req, res) => {
+router.post("/book", authenticateUser, async (req, res) => {
     const { fare, driverId, rideId } = req.body;
     try {
         logger.info(`Booking ride ID ${rideId} with driver ID ${driverId}`);
@@ -173,7 +167,7 @@ router.post('/book', authenticateUser, async (req, res) => {
         }
         ride.driverId = driverId;
         ride.fare = fare;
-        ride.status = 'accepted';
+        ride.status = "accepted";
         ride.otp = Math.floor(100000 + Math.random() * 900000);
         await ride.save();
         const msg = `Ride with ID ${rideId} booked successfully. Proceed to make the payment.`;
@@ -181,7 +175,7 @@ router.post('/book', authenticateUser, async (req, res) => {
         return res.status(200).json({
             msg,
             rideId: ride._id,
-            action: 'join_websocket_room'
+            action: "join_websocket_room",
         });
     } catch (err) {
         const msg = `Error booking ride with ID ${rideId}`;
@@ -189,147 +183,146 @@ router.post('/book', authenticateUser, async (req, res) => {
         return res.status(500).json({ msg, error: err.message });
     }
 });
-
 // Get All Pending Rides
-router.post('/pending', authenticateUser, async (req, res) => {
+router.post("/pending", authenticateUser, async (req, res) => {
     const driverId = req.userID;
-    const { currentLocation } = req.body
+    const { currentLocation } = req.body;
     try {
-        const testOrigin = { latitude: 37.7749, longitude: -122.4194 }; // San Francisco
-        const testDestination = { latitude: 34.0522, longitude: -118.2437 };
-        const { distance, duration } = await calculateDistanceAndDuration(testOrigin, testDestination);
-        console.log('here')
-        logger.info(`Fetching all pending rides for driver ID ${driverId}`);
-        const driver = await Driver.findById(driverId);
-        if (!driver) {
-            const msg = `Driver with ID ${driverId} not found`;
-            logger.error(msg);
-            return res.status(404).json({ msg });
-        }
+      logger.info(`Fetching all pending rides for driver ID ${driverId}`);
+      const driver = await Driver.findById(driverId);
+      if (!driver) {
+        const msg = `Driver with ID ${driverId} not found`;
+        logger.error(msg);
+        return res.status(404).json({ msg });
+      }
+      const pendingRides = await Ride.find({ status: "pending" })
+      .populate("userId", "name mobileNumber") // Populate user details
+      .select("-__v"); // Exclude version field
+      const filteredRides = [];
+      // Configurable discovery radius (in meters) set by admin; default is 2000m
+      const discoveryRadius = process.env.DRIVER_DISCOVERY_RADIUS ? Number(process.env.DRIVER_DISCOVERY_RADIUS) : 100000000;
 
-        const pendingRides = await Ride.find({ status: 'pending' })
-            .populate('userId', 'name mobileNumber') // Populate user details
-            .select('-__v'); // Exclude version field
+     for (const ride of pendingRides) {
+       const { distance, duration } = await calculateDistanceAndDuration(
+         currentLocation,
+         ride.pickupLocation
+       );
+       if (distance <= discoveryRadius) {
+         filteredRides.push({ ...ride.toObject(), distance, duration });
+       }
+     }
+ 
+     const msg = "Pending rides retrieved successfully";
+     logger.info(msg);
+     return res.json({ msg, rides: filteredRides });
+   } catch (err) {
+     const msg = "Error retrieving pending rides";
+     logger.error(`${msg}: ${err.message}`);
+     return res.status(500).json({ msg, error: err.message });
+   }
+ });
 
-        const filteredRides = [];
-        for (const ride of pendingRides) {
-            const { distance, duration } = await calculateDistanceAndDuration(currentLocation, ride.pickupLocation);
-            if (distance <= 2000) { // 2 km in meters
-                filteredRides.push({ ...ride.toObject(), distance, duration });
-            }
-        }
-
-        const msg = 'Pending rides retrieved successfully';
-        logger.info(msg);
-        return res.json({ msg, rides: filteredRides });
-    } catch (err) {
-        const msg = 'Error retrieving pending rides';
-        logger.error(`${msg}: ${err.message}`);
-        return res.status(500).json({ msg, error: err.message });
-    }
-});
 
 // Get quotes of a ride
-router.get('/quotes/:rideId', authenticateUser, async (req, res) => {
+router.get("/quotes/:rideId", authenticateUser, async (req, res) => {
     try {
-        const { rideId } = req.params;
-        logger.info(`Fetching quotes for ride ID ${rideId}`);
-        const ride = await Ride.findById(rideId);
-        if (!ride) {
-            const msg = `Ride with ID ${rideId} not found`;
-            logger.error(msg);
-            return res.status(404).json({ msg });
-        }
-        const msg = `Quotes retrieved successfully for ride ID ${rideId}`;
-        logger.info(msg);
-        return res.json({ msg, quotes: ride.quote, status: ride.status });
+      const { rideId } = req.params;
+      logger.info(`Fetching quotes for ride ID ${rideId}`);
+      const ride = await Ride.findById(rideId);
+      if (!ride) {
+        const msg = `Ride with ID ${rideId} not found`;
+        logger.error(msg);
+        return res.status(404).json({ msg });
+      }
+      const msg = `Quotes retrieved successfully for ride ID ${rideId}`;
+      logger.info(msg);
+      return res.json({ msg, quotes: ride.quote, status: ride.status });
     } catch (err) {
-        const msg = `Error retrieving quotes for ride ID ${rideId}`;
-        logger.error(`${msg}: ${err.message}`);
-        return res.status(500).json({ msg, error: err.message });
+      const msg = `Error retrieving quotes for ride ID ${rideId}`;
+      logger.error(`${msg}: ${err.message}`);
+      return res.status(500).json({ msg, error: err.message });
     }
-});
-
+  });
 // Get Ride Details by Ride ID
-router.get('/:rideId', authenticateUser, async (req, res) => {
+router.get("/:rideId", authenticateUser, async (req, res) => {
     try {
-        const { rideId } = req.params;
-        logger.info(`Fetching details for ride ID ${rideId}`);
-        const ride = await Ride.findById(rideId)
-            .populate('userId', 'name mobileNumber') // Populate user details
-            .populate({
-                path: 'driverId',
-                select: 'owner mobileNumber isVerified name licenseNumber aadhaarNumber vehicleDetails isAvailable email'
-            }); // Populate full driver details
-        if (!ride) {
-            const msg = `Ride with ID ${rideId} not found`;
-            logger.error(msg);
-            return res.status(404).json({ msg });
-        }
-        const msg = `Ride details retrieved successfully for ride ID ${rideId}`;
-        logger.info(msg);
-        return res.json({ msg, ride });
+      const { rideId } = req.params;
+      logger.info(`Fetching details for ride ID ${rideId}`);
+      const ride = await Ride.findById(rideId)
+        .populate("userId", "name mobileNumber") // Populate user details
+        .populate({
+          path: "driverId",
+          select:
+            "owner mobileNumber isVerified name licenseNumber aadhaarNumber vehicleDetails isAvailable email _id",
+        }); // Populate full driver details
+      if (!ride) {
+        const msg = `Ride with ID ${rideId} not found`;
+        logger.error(msg);
+        return res.status(404).json({ msg });
+      }
+      const msg = `Ride details retrieved successfully for ride ID ${rideId}`;
+      logger.info(msg);
+      return res.json({ msg, ride });
     } catch (err) {
-        const msg = `Error retrieving ride details for ride ID ${rideId}`;
-        logger.error(`${msg}: ${err.message}`);
-        return res.status(500).json({ msg, error: err.message });
+      const msg = `Error retrieving ride details for ride ID ${rideId}`;
+      logger.error(`${msg}: ${err.message}`);
+      return res.status(500).json({ msg, error: err.message });
     }
-});
-
-// Cancel ride
-router.post('/cancel', authenticateUser, async (req, res) => {
-    const { rideId, reason, driverLocation, userLocation } = req.body; // added driverLocation and userLocation
+  });
+  // Cancel ride endpoint (updated to include last location details)
+  router.post("/cancel", authenticateUser, async (req, res) => {
+    const { rideId, reason } = req.body;
     try {
-        logger.info(`Cancelling ride ID ${rideId} with reason: ${reason}`);
-        const ride = await Ride.findById(rideId);
-        if (!ride) {
-            const msg = `Ride with ID ${rideId} not found`;
-            logger.error(msg);
-            return res.status(404).json({ msg });
-        }
-        ride.status = 'cancelled';
-        ride.cancelDetails = {
-            by: req.user.role,
-            reason: reason
-        };
-        await ride.save();
-        const msg = `Ride with ID ${rideId} cancelled successfully`;
-        logger.info(msg);
-        return res.status(200).json({ msg, reason, ride });
+      logger.info(`Cancelling ride ID ${rideId} with reason: ${reason}`);
+      const ride = await Ride.findById(rideId);
+      if (!ride) {
+        const msg = `Ride with ID ${rideId} not found`;
+        logger.error(msg);
+        return res.status(404).json({ msg });
+      }
+      ride.status = "cancelled";
+      ride.cancelDetails = {
+        by: req.user.role,
+        reason: reason
+      };
+      await ride.save();
+      const msg = `Ride with ID ${rideId} cancelled successfully`;
+      logger.info(msg);
+      return res.status(200).json({ msg, reason, ride });
     } catch (err) {
-        const msg = `Error cancelling ride with ID ${rideId}`;
-        logger.error(`${msg}: ${err.message}`);
-        return res.status(500).json({ msg, error: err.message });
+      const msg = `Error cancelling ride with ID ${rideId}`;
+      logger.error(`${msg}: ${err.message}`);
+      return res.status(500).json({ msg, error: err.message });
     }
-});
+  });
 
 // Verify OTP
-router.post('/verifyOtp', authenticateUser, async (req, res) => {
-    const { otp, rideId } = req.body;
-    try {
-        logger.info(`Verifying OTP for ride ID ${rideId}`);
-        const ride = await Ride.findById(rideId);
-        if (!ride) {
-            const msg = `Ride with ID ${rideId} not found`;
-            logger.error(msg);
-            return res.status(404).json({ msg });
-        }
-        if (parseInt(otp) === ride.otp) {
-            ride.status = 'completed';
-            await ride.save();
-            const msg = `OTP verified successfully for ride ID ${rideId}. Ride marked as completed.`;
-            logger.info(msg);
-            return res.status(200).json({ msg, ride });
-        } else {
-            const msg = `Incorrect OTP for ride ID ${rideId}`;
-            logger.error(msg);
-            return res.status(400).json({ msg, ride });
-        }
-    } catch (err) {
-        const msg = `Error verifying OTP for ride ID ${rideId}`;
-        logger.error(`${msg}: ${err.message}`);
-        return res.status(500).json({ msg, error: err.message });
-    }
-});
-
+router.post("/verifyOtp", authenticateUser, async (req, res) => {
+   const { otp, rideId } = req.body;
+   try {
+     logger.info(`Verifying OTP for ride ID ${rideId}`);
+     const ride = await Ride.findById(rideId);
+     if (!ride) {
+       const msg = `Ride with ID ${rideId} not found`;
+       logger.error(msg);
+       return res.status(404).json({ msg });
+     }
+     if (parseInt(otp) === ride.otp) {
+       ride.status = "completed";
+       await ride.save();
+       const msg = `OTP verified successfully for ride ID ${rideId}. Ride marked as completed.`;
+       logger.info(msg);
+       return res.status(200).json({ msg, ride });
+     } else {
+       const msg = `Incorrect OTP for ride ID ${rideId}`;
+       logger.error(msg);
+       return res.status(400).json({ msg, ride });
+     }
+   } catch (err) {
+     const msg = `Error verifying OTP for ride ID ${rideId}`;
+     logger.error(`${msg}: ${err.message}`);
+     return res.status(500).json({ msg, error: err.message });
+   }
+})
+ 
 module.exports = router;
