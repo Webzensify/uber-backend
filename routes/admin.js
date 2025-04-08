@@ -144,7 +144,7 @@ router.get('/allUsers', authenticateUser, async (req, res) => {
         return res.status(403).json({ msg: 'Unauthorized' });
     }
     try {
-        const users = await User.find().select('name mobileNumber gender');
+        const users = await User.find().select('name mobileNumber gender aadhaarNumber');
         return res.status(200).json({ msg: 'All users fetched successfully', users });
     } catch (err) {
         return res.status(500).json({ msg: 'Error fetching users', error: err.message });

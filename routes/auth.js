@@ -45,7 +45,7 @@ const getModel = (role) => {
 
 // Register (User, Owner, Admin, Operational Admin)
 router.post('/register', async (req, res) => {
-    const { role, name, mobileNumber, email, otp, aadhaarNumber, address } = req.body;
+    const { role, name, mobileNumber, email, otp, aadhaarNumber, address ,gender} = req.body;
 
     try {
         const Model = getModel(role);
@@ -57,9 +57,9 @@ router.post('/register', async (req, res) => {
         if (!role) return `role not found`
         if (!mobileNumber) return `mobileNumber not found`
         if (!name) return `name not found`
-        if (!email) return `email not found`
+        if (!email && role !== 'user') return `email not found`
         if (!aadhaarNumber) return 'aadhaarNumber not found'
-        if (!address) return 'address not found'
+        if (!address && role !== 'user') return 'address not found'
         const existingEntity = await Model.findOne({ mobileNumber });
         if (existingEntity) {
             const msg = `${role} with mobile number ${mobileNumber} already registered`;
@@ -79,6 +79,7 @@ router.post('/register', async (req, res) => {
             name,
             mobileNumber,
             ...(role === 'owner' && { email, aadhaarNumber, address }),
+            ...(role === 'user' && { aadhaarNumber,fcmToken: req.body.fcmToken, gender }),
         });
         await entity.save();
 
@@ -197,4 +198,20 @@ router.post('/loginDriver', authenticateUser, async (req, res) => {
         res.status(500).json({ msg: 'Server error', error: err.message });
     }
 });
+
+router.get('/get', authenticateUser, async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        return res.status(200).json({ msg: 'User data retrieved successfully', entity: user });
+    } catch (err) {
+        const msg = 'Error retrieving user data';
+        logger.error(`${msg}: ${err.message}`);
+        return res.status(500).json({ msg, error: err.message });
+    }
+});
+
 module.exports = router;

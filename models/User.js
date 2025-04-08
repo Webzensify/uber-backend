@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     isVerified: {type: Boolean, default: true},
     fcmToken: {type: String}, // For Firebase notifications
     name: {type: String},
-    aadhaarCard: {type: String},
+    aadhaarNumber: {type: String},
 });
 
 module.exports = mongoose.model('User', userSchema);
